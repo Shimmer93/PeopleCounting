@@ -10,7 +10,7 @@ def random_crop(im_h, im_w, crop_h, crop_w):
     j = random.randint(0, res_w)
     return i, j
 
-def cal_inner_area(self, c_left, c_up, c_right, c_down, bbox):
+def cal_inner_area(c_left, c_up, c_right, c_down, bbox):
     inner_left = np.maximum(c_left, bbox[:, 0])
     inner_up = np.maximum(c_up, bbox[:, 1])
     inner_right = np.minimum(c_right, bbox[:, 2])

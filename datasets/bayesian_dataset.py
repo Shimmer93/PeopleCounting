@@ -27,6 +27,10 @@ class BayesianDataset(BaseDataset):
     def _cal_dists(self, pts):
         square = np.sum(pts*pts, axis=1)
         dists = np.sqrt(np.maximum(square[:, None] - 2*np.matmul(pts, pts.T) + square[None, :], 0.0))
+        if len(pts) == 1:
+            return np.array([[4.0]])
+        elif len(pts) < 4:
+            return np.mean(dists[:,1:], axis=1, keepdims=True)
         dists = np.mean(np.partition(dists, 3, axis=1)[:, 1:4], axis=1, keepdims=True)
         return dists
 
@@ -50,19 +54,22 @@ class BayesianDataset(BaseDataset):
         h, w = self.crop_size, self.crop_size
         img = F.crop(img, i, j, h, w)
         if len(gt) > 0:
-            nearest_dis = np.clip(dists, 4.0, 128.0)
-
-            points_left_up = gt - nearest_dis[:, None] / 2.0
-            points_right_down = gt + nearest_dis[:, None] / 2.0
+            if len(gt) > 1:
+                nearest_dis = np.clip(dists, 4.0, 128.0)
+            else:
+                nearest_dis = np.array([4.0])
+            points_left_up = gt - nearest_dis / 2.0
+            points_right_down = gt + nearest_dis / 2.0
             bbox = np.concatenate((points_left_up, points_right_down), axis=1)
             inner_area = cal_inner_area(j, i, j + w, i + h, bbox)
-            origin_area = nearest_dis * nearest_dis
+            origin_area = np.squeeze(nearest_dis * nearest_dis, axis=-1)
             ratio = np.clip(1.0 * inner_area / origin_area, 0.0, 1.0)
             mask = (ratio >= 0.3)
 
             target = ratio[mask]
             gt = gt[mask]
-            gt = gt - [j, i]  # change coodinate
+            if len(gt) > 0:
+                gt = gt - [j, i]  # change coodinate
         if len(gt) > 0:
             if random.random() > 0.5:
                 img = F.hflip(img)
@@ -72,9 +79,10 @@ class BayesianDataset(BaseDataset):
             if random.random() > 0.5:
                 img = F.hflip(img)
 
-        #gt /= self.downsample
+        gt = gt / self.downsample
+        st_size = st_size / self.downsample
 
-        return self.trans(img), torch.from_numpy(gt.copy()).float(), \
+        return self.transform(img), torch.from_numpy(gt.copy()).float(), \
                torch.from_numpy(target.copy()).float(), st_size
 
     def _val_transform(self, img, gt):
@@ -94,7 +102,6 @@ class BayesianDataset(BaseDataset):
             gt[:, 0] += left
             gt[:, 1] += top
 
-        #gt /= self.downsample
+        gt = gt / self.downsample
 
-        return self.trans(img), torch.from_numpy(gt.copy()).float()
-                
+        return self.transform(img), torch.from_numpy(gt.copy()).float()

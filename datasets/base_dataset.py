@@ -21,14 +21,14 @@ class BaseDataset(Dataset):
         self.method = method
 
         if dname == 'UCF_CC_50':
-            self.img_folder = 'images'
-            self.gt_folder = 'ground_truth'
+            self.img_folder = ''
+            self.gt_folder = ''
             self.gt_colname = 'annPoints'
             self.gt_suffix = '_ann'
             self.is_grey = True
         elif dname == 'SmartCity':
-            self.img_folder = 'img'
-            self.gt_folder = 'annotation'
+            self.img_folder = 'images'
+            self.gt_folder = 'images'
             self.gt_colname = 'loc'
             self.gt_suffix = ''
             self.is_grey = False
@@ -46,11 +46,13 @@ class BaseDataset(Dataset):
                 T.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
             ])
 
-        img_fns = glob(os.path.join(root, self.img_folder))
+        img_fns = glob(os.path.join(root, self.img_folder, '*.jpg'))
+        print(root, self.img_folder, len(img_fns))
         with open(split_file, 'r') as f:
             split_fns = f.readlines()
             split_fns = [fn.strip('\n') for fn in split_fns]
         self.img_fns = [fn for fn in img_fns if fn in split_fns]
+        print(len(self.img_fns))
         
     def __len__(self):
         return len(self.img_fns)

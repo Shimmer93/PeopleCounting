@@ -26,9 +26,9 @@ model:
     batch_size_val: 1
     num_workers: 4
     lr: 0.00001
-    train_split: 'data/SmartCity/train.txt'
-    val_split: 'data/SmartCity/val.txt'
-    test_split: 'data/SmartCity/test.txt'
+    train_split: 'data/UCF_CC_50/train.txt'
+    val_split: 'data/UCF_CC_50/val.txt'
+    test_split: 'data/UCF_CC_50/test.txt'
     model_name: 'CSRNet'
     loss_name: 'Bayesian'
     dataset_name: 'Bayesian'
@@ -38,14 +38,14 @@ model:
       use_background: true
     post_prob:
       sigma: 8.0
-      c_size: 512
-      stride: 8
-      background_ratio: 0.9
+      c_size: 328
+      stride: 1
+      background_ratio: 0.15
       use_background: True
     dataset:
-      dname: 'SmartCity'
-      root: '/mnt/home/zpengac/USERDIR/Crowd_counting/datasets/SmartCity'
-      crop_size: 512
-      downsample: 8
+      dname: 'UCF_CC_50'
+      root: '/mnt/home/zpengac/USERDIR/Crowd_counting/datasets/UCF_CC_50'
+      crop_size: 328
+      downsample: 1
       log_para: 1
   
