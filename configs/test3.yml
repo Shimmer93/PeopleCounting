@@ -30,18 +30,18 @@ model:
     val_split: 'data/SmartCity/val.txt'
     test_split: 'data/SmartCity/test.txt'
     model_name: 'CSRNet'
-    loss_name: 'Bayesian'
-    dataset_name: 'Bayesian'
+    loss_name: 'OT'
+    dataset_name: 'Binary'
+    wot: 0.1
+    wtv: 0.01
     model:
       load_weights: true
     loss:
-      use_background: true
-    post_prob:
-      sigma: 8.0
       c_size: 512
       stride: 8
-      background_ratio: 0.15
-      use_background: True
+      norm_cood: 0
+      num_of_iter_in_ot: 100
+      reg: 10.0
     dataset:
       dname: 'SmartCity'
       root: '/mnt/home/zpengac/USERDIR/Crowd_counting/datasets/SmartCity'

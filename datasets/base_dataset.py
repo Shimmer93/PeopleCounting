@@ -47,12 +47,10 @@ class BaseDataset(Dataset):
             ])
 
         img_fns = glob(os.path.join(root, self.img_folder, '*.jpg'))
-        print(root, self.img_folder, len(img_fns))
         with open(split_file, 'r') as f:
             split_fns = f.readlines()
             split_fns = [fn.strip('\n') for fn in split_fns]
         self.img_fns = [fn for fn in img_fns if fn in split_fns]
-        print(len(self.img_fns))
         
     def __len__(self):
         return len(self.img_fns)
