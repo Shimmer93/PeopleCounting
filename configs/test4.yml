@@ -19,35 +19,33 @@ trainer:
   devices: auto
   num_sanity_val_steps: 0
   detect_anomaly: True
-  max_epochs: 10
+  max_epochs: 300
 model:
   hparams:
-    batch_size_train: 4
+    batch_size_train: 16
     batch_size_val: 1
     num_workers: 4
-    lr: 0.00001
+    lr: 0.0001
     train_split: 'data/UCF_CC_50/train.txt'
     val_split: 'data/UCF_CC_50/val.txt'
     test_split: 'data/UCF_CC_50/test.txt'
     model_name: 'CSRNet'
-    loss_name: 'Bayesian'
-    dataset_name: 'Bayesian'
+    loss_name: 'OT'
+    dataset_name: 'Binary'
+    wot: 0.1
+    wtv: 0.01
     model:
       load_weights: true
     loss:
-      device: 'cuda'
-      use_background: true
-    post_prob:
-      device: 'cuda'
-      sigma: 8.0
       c_size: 328
-      stride: 1
-      background_ratio: 0.15
-      use_background: True
+      stride: 8
+      norm_cood: 0
+      num_of_iter_in_ot: 100
+      reg: 10.0
     dataset:
       dname: 'UCF_CC_50'
       root: '/mnt/home/zpengac/USERDIR/Crowd_counting/datasets/UCF_CC_50'
       crop_size: 328
-      downsample: 1
+      downsample: 8
       log_para: 1
   

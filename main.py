@@ -25,6 +25,12 @@ def train_collate(batch, dataset):
         points = transposed_batch[1]  # the number of points is not fixed, keep it as a list of tensor
         gt_discretes = torch.stack(transposed_batch[2], 0)
         return images, points, gt_discretes
+    elif dataset == 'Density':
+        transposed_batch = list(zip(*batch))
+        images = torch.stack(transposed_batch[0], 0)
+        points = transposed_batch[1]  # the number of points is not fixed, keep it as a list of tensor
+        dmaps = torch.stack(transposed_batch[2], 0)
+        return images, points, dmaps
     else:
         raise NotImplementedError
 
@@ -35,13 +41,13 @@ class Trainer(pl.LightningModule):
 
         self.save_hyperparameters(hparams)
         self.model = Model(self.hparams.model_name, **self.hparams.model)
-        self.loss = Loss(self.hparams.loss_name, device='cuda', **self.hparams.loss)
+        self.loss = Loss(self.hparams.loss_name, **self.hparams.loss)
         self.train_dataset = Dataset(self.hparams.dataset_name, method='train', split_file=self.hparams.train_split, **self.hparams.dataset)
         self.val_dataset = Dataset(self.hparams.dataset_name, method='val', split_file=self.hparams.val_split, **self.hparams.dataset)
         self.test_dataset = Dataset(self.hparams.dataset_name, method='test', split_file=self.hparams.test_split, **self.hparams.dataset)
 
         if self.hparams.loss_name == 'Bayesian':
-            self.post_prob = Post_Prob(device='cuda', **self.hparams.post_prob)
+            self.post_prob = Post_Prob(**self.hparams.post_prob)
         elif self.hparams.loss_name == 'OT':
             self.tv_loss = nn.L1Loss(reduction='none')
             self.count_loss = nn.L1Loss()
@@ -91,16 +97,20 @@ class Trainer(pl.LightningModule):
             tv_loss = (self.tv_loss(preds_normed, bmaps_normed).sum(1).sum(1).sum(1) * gd_count).mean(0) * self.hparams.wtv
 
             loss = ot_loss + tv_loss + count_loss
+        elif self.hparams.dataset_name == 'Density':
+            imgs, gts, dmaps = batch
+            preds = self.forward(imgs)
+            loss = self.loss(preds * self.hparams.log_para, dmaps * self.hparams.log_para)
         
         return loss
 
     def validation_step(self, batch, batch_idx):
         imgs, gts = batch
         preds = self.forward(imgs)
-        preds = torch.sum(preds, dim=(1,2)).cpu()
-        targs = torch.tensor([gt.shape[1] for gt in gts]).cpu()
+        preds = torch.sum(preds, dim=(1,2,3)).cpu()
+        targs = torch.tensor([gt.shape[0] for gt in gts]).cpu()
         for pred, targ in zip(preds, targs):
-            mse_loss = torch.nn.MSELoss()(pred, targ)
+            mse_loss = torch.sqrt(torch.nn.MSELoss()(pred, targ))
             mae_loss = torch.nn.L1Loss()(pred, targ)
             self.log_dict({'val/MSE': mse_loss.item(), 'val/MAE': mae_loss.item()})
 
@@ -116,7 +126,11 @@ class Trainer(pl.LightningModule):
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.model.parameters(), lr=self.hparams.lr)
-        return {'optimizer': optimizer}
+        #scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=10, min_lr=1e-8, verbose=True)
+        scheduler = torch.optim.lr_scheduler.OneCycleLR(
+            optimizer, max_lr=1e-3, total_steps=self.trainer.estimated_stepping_batches
+        )
+        return {'optimizer': optimizer, 'lr_scheduler': scheduler}
 
 if __name__ == '__main__':
     cli = LightningCLI(Trainer, save_config_overwrite=True)

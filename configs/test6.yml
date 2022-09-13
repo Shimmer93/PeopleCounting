@@ -19,35 +19,29 @@ trainer:
   devices: auto
   num_sanity_val_steps: 0
   detect_anomaly: True
-  max_epochs: 10
+  max_epochs: 300
 model:
   hparams:
-    batch_size_train: 4
+    batch_size_train: 32
     batch_size_val: 1
     num_workers: 4
-    lr: 0.00001
+    lr: 0.0001
     train_split: 'data/UCF_CC_50/train.txt'
     val_split: 'data/UCF_CC_50/val.txt'
     test_split: 'data/UCF_CC_50/test.txt'
     model_name: 'CSRNet'
-    loss_name: 'Bayesian'
-    dataset_name: 'Bayesian'
+    loss_name: 'MSE'
+    dataset_name: 'Density'
+    log_para: 1
     model:
       load_weights: true
     loss:
-      device: 'cuda'
-      use_background: true
-    post_prob:
-      device: 'cuda'
-      sigma: 8.0
-      c_size: 328
-      stride: 1
-      background_ratio: 0.15
-      use_background: True
+      reduction: 'mean'
     dataset:
       dname: 'UCF_CC_50'
       root: '/mnt/home/zpengac/USERDIR/Crowd_counting/datasets/UCF_CC_50'
+      dmap_path: '/mnt/home/zpengac/USERDIR/Crowd_counting/datasets/UCF_CC_50/dmaps'
       crop_size: 328
-      downsample: 1
+      downsample: 8
       log_para: 1
   

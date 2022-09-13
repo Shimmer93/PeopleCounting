@@ -35,8 +35,10 @@ model:
     model:
       load_weights: true
     loss:
+      device: 'cuda'
       use_background: true
     post_prob:
+      device: 'cuda'
       sigma: 8.0
       c_size: 512
       stride: 8

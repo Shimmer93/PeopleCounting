@@ -82,7 +82,7 @@ class CSRNet(nn.Module):
         self.backend = make_layers(
             self.backend_feat, in_channels=512, dilation=True)
         self.output_layer = nn.Conv2d(64, 1, kernel_size=1)
-        self.sigmoid = nn.ReLU()
+        self.sigmoid = nn.Sigmoid()
         if not load_weights:
             mod = models.vgg16(weights=models.VGG16_Weights.DEFAULT)
             self._initialize_weights()
@@ -97,7 +97,7 @@ class CSRNet(nn.Module):
         x = self.frontend(x)
         x = self.backend(x)
         x = self.output_layer(x)
-        x = self.sigmoid(x)
+        #x = self.sigmoid(x)
         return x
 
     def _initialize_weights(self):

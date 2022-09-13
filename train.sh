@@ -1,4 +1,4 @@
 #!/bin/bash
 
 CUDA_VISIBLE_DEVICES=0
-python main.py fit --config configs/test3.yml
+python main.py fit --config configs/test6.yml
