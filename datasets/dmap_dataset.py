@@ -9,7 +9,7 @@ import sys
 sys.path.append('/mnt/home/zpengac/USERDIR/Crowd_counting/PeopleCounting')
 
 from datasets.base_dataset import BaseDataset
-from utils.image import random_crop, cal_inner_area, add_margin
+from utils.data import random_crop, get_padding
 
 class DensityMapDataset(BaseDataset):
 
@@ -48,14 +48,27 @@ class DensityMapDataset(BaseDataset):
     def _train_transform(self, img, gt, dmap):
         wd, ht = img.size
         st_size = 1.0 * min(wd, ht)
-        assert st_size >= self.crop_size
         assert len(gt) >= 0
+        dmap = torch.from_numpy(dmap)
+
+        # Padding
+        if st_size < self.crop_size:
+            st_size = self.crop_size
+            padding, ht, wd = get_padding(ht, wd, self.crop_size, self.crop_size)
+            left, top, _, _ = padding
+
+            img = F.pad(img, padding)
+            dmap = F.pad(dmap, padding)
+            gt = gt + [left, top]
+
+        # Cropping
         h, w = self.crop_size, self.crop_size
         h2, w2 = self.crop_size, self.crop_size
+
         i, j = random_crop(ht, wd, h, w)
         img = F.crop(img, i, j, h, w)
-        dmap = torch.from_numpy(dmap)
         dmap = F.crop(dmap, i, j, h2, w2)
+
         if len(gt) > 0:
             gt = gt - [j, i]
             idx_mask = (gt[:, 0] >= 0) * (gt[:, 0] <= w) * \
@@ -64,49 +77,52 @@ class DensityMapDataset(BaseDataset):
         else:
             gt = np.empty([0, 2])
 
+        # Downsampling
         down_w = w // self.downsample
         down_h = h // self.downsample
         dmap = dmap.reshape([down_h, self.downsample, down_w, self.downsample]).sum(dim=(1, 3))
 
-        if len(gt) > 0:
-            if random.random() > 0.5:
-                img = F.hflip(img)
-                dmap = F.hflip(dmap)
-                gt[:, 0] = w - gt[:, 0]
-        else:
-            if random.random() > 0.5:
-                img = F.hflip(img)
-                dmap = F.hflip(dmap)
-        dmap = torch.unsqueeze(dmap, 0)
         gt = gt / self.downsample
 
-        return self.transform(img), torch.from_numpy(gt.copy()).float(), dmap
+        # Flipping
+        if random.random() > 0.5:
+            img = F.hflip(img)
+            dmap = F.hflip(dmap)
+            if len(gt) > 0:
+                gt[:, 0] = w - gt[:, 0]
+        
+        # Post-processing
+        img = self.transform(img)
+        gt = torch.from_numpy(gt.copy()).float()
+        dmap = torch.unsqueeze(dmap, 0)
+
+        return img, gt, dmap
 
     def _val_transform(self, img, gt):
+        # Padding
         wd, ht = img.size
         new_wd = (wd // self.downsample + 1) * self.downsample if wd % self.downsample != 0 else wd
         new_ht = (ht // self.downsample + 1) * self.downsample if ht % self.downsample != 0 else ht
 
-        if not (new_wd == wd and new_ht == ht):
-            dw = new_wd - wd
-            dh = new_ht - ht
-            left = dw // 2
-            right = dw // 2 + dw % 2
-            top = dh // 2
-            bottom = dh // 2 + dh % 2
+        padding, ht, wd = get_padding(ht, wd, new_ht, new_wd)
+        left, top, _, _ = padding
 
-            img = add_margin(img, top, right, bottom, left, (0, 0, 0))
-            gt[:, 0] += left
-            gt[:, 1] += top
+        img = F.pad(img, padding)
+        gt = gt + [left, top]
 
+        # Downsampling
         gt = gt / self.downsample
 
-        return self.transform(img), torch.from_numpy(gt.copy()).float()
+        # Post-processing
+        img = self.transform(img)
+        gt = torch.from_numpy(gt.copy()).float()
+
+        return img, gt
 
 if __name__ == '__main__':
-    ds = DensityMapDataset('SmartCity', '/mnt/home/zpengac/USERDIR/Crowd_counting/datasets/SmartCity',
-            '/mnt/home/zpengac/USERDIR/Crowd_counting/datasets/SmartCity/dmaps', 512, 8, 1, 'train', 
-            '/mnt/home/zpengac/USERDIR/Crowd_counting/PeopleCounting/data/SmartCity/train.txt')
+    ds = DensityMapDataset('UCF_CC_50', '/mnt/home/zpengac/USERDIR/Crowd_counting/datasets/UCF_CC_50',
+            '/mnt/home/zpengac/USERDIR/Crowd_counting/datasets/UCF_CC_50/dmaps', 328, 8, 1, 'train', 
+            '/mnt/home/zpengac/USERDIR/Crowd_counting/PeopleCounting/data/UCF_CC_50/train.txt')
 
     img, gt, dmap = ds[0]
 

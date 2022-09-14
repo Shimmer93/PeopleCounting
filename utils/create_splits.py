@@ -13,8 +13,8 @@ def main(path, output_path, num_splits):
     fns = [fn+'\n' for fn in fns]
 
     if num_splits == 2:
-        splits = ['train', 'val']
-        fn_groups = [fns[:int(0.8*num_fs)], fns[int(0.8*num_fs):]]
+        splits = ['test', 'val']
+        fn_groups = [fns[:int(0.5*num_fs)], fns[int(0.5*num_fs):]]
     elif num_splits == 3:
         splits = ['train', 'val', 'test']
         fn_groups = [fns[:int(0.8*num_fs)], fns[int(0.8*num_fs):int(0.9*num_fs)], fns[int(0.9*num_fs):]]

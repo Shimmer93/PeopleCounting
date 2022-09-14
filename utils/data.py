@@ -10,6 +10,26 @@ def random_crop(im_h, im_w, crop_h, crop_w):
     j = random.randint(0, res_w)
     return i, j
 
+def get_padding(h, w, new_h, new_w):
+    if h >= new_h:
+        top = 0
+        bottom = 0
+    else:
+        dh = new_h - h
+        top = dh // 2
+        bottom = dh // 2 + dh % 2
+        h = new_h
+    if w >= new_w:
+        left = 0
+        right = 0
+    else:
+        dw = new_w - w
+        left = dw // 2
+        right = dw // 2 + dw % 2
+        w = new_w
+    
+    return (left, top, right, bottom), h, w
+
 def cal_inner_area(c_left, c_up, c_right, c_down, bbox):
     inner_left = np.maximum(c_left, bbox[:, 0])
     inner_up = np.maximum(c_up, bbox[:, 1])
@@ -17,11 +37,3 @@ def cal_inner_area(c_left, c_up, c_right, c_down, bbox):
     inner_down = np.minimum(c_down, bbox[:, 3])
     inner_area = np.maximum(inner_right-inner_left, 0.0) * np.maximum(inner_down-inner_up, 0.0)
     return inner_area
-
-def add_margin(img, top, right, bottom, left, color):
-    width, height = img.size
-    new_width = width + right + left
-    new_height = height + top + bottom
-    result = Image.new(img.mode, (new_width, new_height), color)
-    result.paste(img, (left, top))
-    return result

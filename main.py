@@ -42,9 +42,9 @@ class Trainer(pl.LightningModule):
         self.save_hyperparameters(hparams)
         self.model = Model(self.hparams.model_name, **self.hparams.model)
         self.loss = Loss(self.hparams.loss_name, **self.hparams.loss)
-        self.train_dataset = Dataset(self.hparams.dataset_name, method='train', split_file=self.hparams.train_split, **self.hparams.dataset)
-        self.val_dataset = Dataset(self.hparams.dataset_name, method='val', split_file=self.hparams.val_split, **self.hparams.dataset)
-        self.test_dataset = Dataset(self.hparams.dataset_name, method='test', split_file=self.hparams.test_split, **self.hparams.dataset)
+        self.train_dataset = Dataset(self.hparams.dataset_name, method='train', split_file=self.hparams.train_split, **self.hparams.dataset_train)
+        self.val_dataset = Dataset(self.hparams.dataset_name, method='val', split_file=self.hparams.val_split, **self.hparams.dataset_val)
+        self.test_dataset = Dataset(self.hparams.dataset_name, method='test', split_file=self.hparams.test_split, **self.hparams.dataset_test)
 
         if self.hparams.loss_name == 'Bayesian':
             self.post_prob = Post_Prob(**self.hparams.post_prob)
@@ -126,7 +126,7 @@ class Trainer(pl.LightningModule):
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.model.parameters(), lr=self.hparams.lr)
-        #scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=10, min_lr=1e-8, verbose=True)
+        # scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=10, min_lr=1e-8, verbose=True)
         scheduler = torch.optim.lr_scheduler.OneCycleLR(
             optimizer, max_lr=1e-3, total_steps=self.trainer.estimated_stepping_batches
         )

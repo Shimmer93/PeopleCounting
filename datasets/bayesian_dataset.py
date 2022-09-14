@@ -5,7 +5,7 @@ import torchvision.transforms.functional as F
 import random
 
 from datasets.base_dataset import BaseDataset
-from utils.image import random_crop, cal_inner_area, add_margin
+from utils.data import random_crop, cal_inner_area, get_padding
 
 class BayesianDataset(BaseDataset):
 
@@ -35,29 +35,31 @@ class BayesianDataset(BaseDataset):
         return dists
 
     def _train_transform(self, img, gt, dists):
-        """random crop image patch and find people in it"""
         wd, ht = img.size
-        # assert len(keypoints) > 0
-        if random.random() > 0.88:
-            img = img.convert('L').convert('RGB')
-        re_size = random.random() * 0.5 + 0.75
-        wdd = (int)(wd*re_size)
-        htt = (int)(ht*re_size)
-        if min(wdd, htt) >= self.crop_size:
-            wd = wdd
-            ht = htt
-            img = img.resize((wd, ht))
-            gt = gt*re_size
-        st_size = min(wd, ht)
-        assert st_size >= self.crop_size
-        i, j = random_crop(ht, wd, self.crop_size, self.crop_size)
+        st_size = 1.0 * min(wd, ht)
+        assert len(gt) >= 0
+
+        # Padding
+        if st_size < self.crop_size:
+            st_size = self.crop_size
+            padding, ht, wd = get_padding(ht, wd, self.crop_size, self.crop_size)
+            left, top, _, _ = padding
+
+            img = F.pad(img, padding)
+            gt = gt + [left, top]
+
+        # Cropping
         h, w = self.crop_size, self.crop_size
+
+        i, j = random_crop(ht, wd, h, w)
         img = F.crop(img, i, j, h, w)
+
         if len(gt) > 0:
             if len(gt) > 1:
                 nearest_dis = np.clip(dists, 4.0, 128.0)
             else:
                 nearest_dis = np.array([4.0])
+
             points_left_up = gt - nearest_dis / 2.0
             points_right_down = gt + nearest_dis / 2.0
             bbox = np.concatenate((points_left_up, points_right_down), axis=1)
@@ -68,40 +70,27 @@ class BayesianDataset(BaseDataset):
 
             target = ratio[mask]
             gt = gt[mask]
-            if len(gt) > 0:
-                gt = gt - [j, i]  # change coodinate
-        if len(gt) > 0:
-            if random.random() > 0.5:
-                img = F.hflip(img)
-                gt[:, 0] = w - gt[:, 0]
-        else:
-            target = np.array([])
-            if random.random() > 0.5:
-                img = F.hflip(img)
 
+        if len(gt) > 0:
+            gt = gt - [j, i]  # change coodinate
+        else:
+            gt = np.empty([0, 2])
+
+        # Downsampling
         gt = gt / self.downsample
         st_size = st_size / self.downsample
 
-        return self.transform(img), torch.from_numpy(gt.copy()).float(), \
-               torch.from_numpy(target.copy()).float(), st_size
+        # Flipping
+        if random.random() > 0.5:
+            img = F.hflip(img)
+            if len(gt) > 0:
+                gt[:, 0] = w - gt[:, 0]
+            else:
+                target = np.array([])
+        
+        # Post-processing
+        img = self.transform(img)
+        gt = torch.from_numpy(gt.copy()).float()
+        target = torch.from_numpy(target.copy()).float()
 
-    def _val_transform(self, img, gt):
-        wd, ht = img.size
-        new_wd = (wd // self.downsample + 1) * self.downsample if wd % self.downsample != 0 else wd
-        new_ht = (ht // self.downsample + 1) * self.downsample if ht % self.downsample != 0 else ht
-
-        if not (new_wd == wd and new_ht == ht):
-            dw = new_wd - wd
-            dh = new_ht - ht
-            left = dw // 2
-            right = dw // 2 + dw % 2
-            top = dh // 2
-            bottom = dh // 2 + dh % 2
-
-            img = add_margin(img, top, right, bottom, left, (0, 0, 0))
-            gt[:, 0] += left
-            gt[:, 1] += top
-
-        gt = gt / self.downsample
-
-        return self.transform(img), torch.from_numpy(gt.copy()).float()
+        return img, gt, target, st_size

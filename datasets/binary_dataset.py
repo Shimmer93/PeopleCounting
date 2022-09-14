@@ -5,7 +5,7 @@ import torchvision.transforms.functional as F
 import random
 
 from datasets.base_dataset import BaseDataset
-from utils.image import random_crop, add_margin
+from utils.data import random_crop, get_padding
 
 class BinaryMapDataset(BaseDataset):
 
@@ -53,11 +53,28 @@ class BinaryMapDataset(BaseDataset):
     def _train_transform(self, img, gt):
         wd, ht = img.size
         st_size = 1.0 * min(wd, ht)
-        assert st_size >= self.crop_size
         assert len(gt) >= 0
+        bmap = self._gen_discrete_map(ht, wd, gt)
+        bmap = torch.from_numpy(bmap)
+
+        # Padding
+        if st_size < self.crop_size:
+            st_size = self.crop_size
+            padding, ht, wd = get_padding(ht, wd, self.crop_size, self.crop_size)
+            left, top, _, _ = padding
+
+            img = F.pad(img, padding)
+            bmap = F.pad(bmap, padding)
+            gt = gt + [left, top]
+
+        # Cropping
         h, w = self.crop_size, self.crop_size
+        h2, w2 = self.crop_size, self.crop_size
+
         i, j = random_crop(ht, wd, h, w)
         img = F.crop(img, i, j, h, w)
+        bmap = F.crop(bmap, i, j, h2, w2)
+
         if len(gt) > 0:
             gt = gt - [j, i]
             idx_mask = (gt[:, 0] >= 0) * (gt[:, 0] <= w) * \
@@ -66,39 +83,23 @@ class BinaryMapDataset(BaseDataset):
         else:
             gt = np.empty([0, 2])
 
-        gt_discrete = self._gen_discrete_map(h, w, gt)
+        # Downsampling
         down_w = w // self.downsample
         down_h = h // self.downsample
-        gt_discrete = gt_discrete.reshape([down_h, self.downsample, down_w, self.downsample]).sum(axis=(1, 3))
-        assert np.sum(gt_discrete) == len(gt)
+        bmap = bmap.reshape([down_h, self.downsample, down_w, self.downsample]).sum(dim=(1, 3))
 
-        if len(gt) > 0:
-            if random.random() > 0.5:
-                img = F.hflip(img)
-                gt_discrete = np.fliplr(gt_discrete)
+        gt = gt / self.downsample
+
+        # Flipping
+        if random.random() > 0.5:
+            img = F.hflip(img)
+            bmap = F.hflip(bmap)
+            if len(gt) > 0:
                 gt[:, 0] = w - gt[:, 0]
-        else:
-            if random.random() > 0.5:
-                img = F.hflip(img)
-                gt_discrete = np.fliplr(gt_discrete)
-        gt_discrete = np.expand_dims(gt_discrete, 0)
+        
+        # Post-processing
+        img = self.transform(img)
+        gt = torch.from_numpy(gt.copy()).float()
+        bmap = torch.unsqueeze(bmap, 0)
 
-        return self.transform(img), torch.from_numpy(gt.copy()).float(), torch.from_numpy(
-            gt_discrete.copy()).float()
-
-    def _val_transform(self, img, gt):
-        wd, ht = img.size
-        new_wd = (wd // self.downsample + 1) * self.downsample if wd % self.downsample != 0 else wd
-        new_ht = (ht // self.downsample + 1) * self.downsample if ht % self.downsample != 0 else ht
-
-        if not (new_wd == wd and new_ht == ht):
-            dw = new_wd - wd
-            dh = new_ht - ht
-            left = dw // 2
-            right = dw // 2 + dw % 2
-            top = dh // 2
-            bottom = dh // 2 + dh % 2
-
-            img = add_margin(img, top, right, bottom, left, (0, 0, 0))
-
-        return self.transform(img), torch.from_numpy(gt.copy()).float()
+        return img, gt, bmap
