@@ -19,29 +19,48 @@ trainer:
   devices: auto
   num_sanity_val_steps: 0
   detect_anomaly: True
-  max_epochs: 300
+  max_epochs: 100
 model:
   hparams:
-    batch_size_train: 32
+    batch_size_train: 16
     batch_size_val: 1
     num_workers: 4
     lr: 0.0001
-    train_split: 'data/SmartCity/train.txt'
-    val_split: 'data/SmartCity/val.txt'
-    test_split: 'data/SmartCity/test.txt'
+    train_split: null
+    val_split: 'data/ShanghaiTechA/val.txt'
+    test_split: 'data/ShanghaiTechA/test.txt'
     model_name: 'CSRNet'
-    loss_name: 'MSE'
-    dataset_name: 'Density'
+    loss_name: 'Bayesian'
+    dataset_name: 'Bayesian'
     log_para: 1
     model:
       load_weights: false
     loss:
-      reduction: 'mean'
-    dataset:
-      dname: 'SmartCity'
-      root: '/mnt/home/zpengac/USERDIR/Crowd_counting/datasets/SmartCity'
-      dmap_path: '/mnt/home/zpengac/USERDIR/Crowd_counting/datasets/SmartCity/dmaps'
-      crop_size: 512
+      device: 'cuda'
+      use_background: true
+    post_prob:
+      device: 'cuda'
+      sigma: 8.0
+      c_size: 784
+      stride: 8
+      background_ratio: 0.15
+      use_background: True
+    dataset_train:
+      dname: 'SHHA'
+      root: '/mnt/data/smartcity/SHHA/train'
+      crop_size: 784
+      downsample: 8
+      log_para: 1
+    dataset_val:
+      dname: 'SHHA'
+      root: '/mnt/data/smartcity/SHHA/test'
+      crop_size: 784
+      downsample: 8
+      log_para: 1
+    dataset_test:
+      dname: 'SHHA'
+      root: '/mnt/data/smartcity/SHHA/test'
+      crop_size: 784
       downsample: 8
       log_para: 1
   

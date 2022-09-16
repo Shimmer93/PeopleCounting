@@ -97,7 +97,7 @@ class CSRNet(nn.Module):
         x = self.frontend(x)
         x = self.backend(x)
         x = self.output_layer(x)
-        #x = self.sigmoid(x)
+        # x = self.sigmoid(x)
         return x
 
     def _initialize_weights(self):

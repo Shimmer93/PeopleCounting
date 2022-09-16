@@ -6,7 +6,7 @@ trainer:
         refresh_rate: 10
     - class_path: pytorch_lightning.callbacks.ModelCheckpoint
       init_args:
-        filename: epoch={epoch:03d}_mse={val/MSE:.6f}
+        filename: epoch={epoch:03d}_mse={val/MSE:.2f}_mae={val/MAE:.2f}
         monitor: val/MSE
         verbose: True
         save_last: True
@@ -35,7 +35,7 @@ model:
     wot: 0.1
     wtv: 0.01
     model:
-      load_weights: true
+      load_weights: false
     loss:
       c_size: 328
       stride: 8

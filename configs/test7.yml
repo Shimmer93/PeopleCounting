@@ -6,7 +6,7 @@ trainer:
         refresh_rate: 10
     - class_path: pytorch_lightning.callbacks.ModelCheckpoint
       init_args:
-        filename: epoch={epoch:03d}_mse={val/MSE:.6f}
+        filename: epoch={epoch:03d}_mse={val/MSE:.2f}_mae={val/MAE:.2f}
         monitor: val/MSE
         verbose: True
         save_last: True
@@ -22,40 +22,40 @@ trainer:
   max_epochs: 100
 model:
   hparams:
-    batch_size_train: 32
+    batch_size_train: 4
     batch_size_val: 1
     num_workers: 4
     lr: 0.0001
     train_split: null
     val_split: 'data/ShanghaiTechA/val.txt'
     test_split: 'data/ShanghaiTechA/test.txt'
-    model_name: 'CSRNet'
+    model_name: 'SACANet'
     loss_name: 'MSE'
     dataset_name: 'Density'
     log_para: 1
     model:
-      load_weights: true
+      load_weights: false
     loss:
       reduction: 'mean'
     dataset_train:
       dname: 'SHHA'
       root: '/mnt/data/smartcity/SHHA/train'
       dmap_path: '/mnt/data/smartcity/SHHA/train/ground_truth'
-      crop_size: 512
+      crop_size: 784
       downsample: 8
       log_para: 1
     dataset_val:
       dname: 'SHHA'
       root: '/mnt/data/smartcity/SHHA/test'
       dmap_path: '/mnt/data/smartcity/SHHA/test/ground_truth'
-      crop_size: 512
+      crop_size: 784
       downsample: 8
       log_para: 1
     dataset_test:
       dname: 'SHHA'
       root: '/mnt/data/smartcity/SHHA/test'
       dmap_path: '/mnt/data/smartcity/SHHA/test/ground_truth'
-      crop_size: 512
+      crop_size: 784
       downsample: 8
       log_para: 1
   

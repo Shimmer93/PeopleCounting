@@ -85,11 +85,11 @@ class DensityMapDataset(BaseDataset):
         gt = gt / self.downsample
 
         # Flipping
-        if random.random() > 0.5:
-            img = F.hflip(img)
-            dmap = F.hflip(dmap)
-            if len(gt) > 0:
-                gt[:, 0] = w - gt[:, 0]
+        # if random.random() > 0.5:
+        #     img = F.hflip(img)
+        #     dmap = F.hflip(dmap)
+        #     if len(gt) > 0:
+        #         gt[:, 0] = w - gt[:, 0]
         
         # Post-processing
         img = self.transform(img)

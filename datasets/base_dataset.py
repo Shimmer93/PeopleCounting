@@ -10,7 +10,7 @@ from PIL import Image
 import random
 import os
 
-from PeopleCounting.utils.data import random_crop, get_padding
+from utils.data import random_crop, get_padding
 from datasets.dataset_metadata import UCF_CC_50Metadata, SmartCityMetadata, ShanghaiTechAMetadata
 
 class BaseDataset(Dataset):
@@ -38,7 +38,7 @@ class BaseDataset(Dataset):
                 T.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5])
             ])
         else:
-            self.meta.transform = T.Compose([
+            self.transform = T.Compose([
                 T.ToTensor(),
                 T.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
             ])
