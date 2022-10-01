@@ -287,8 +287,8 @@ class Vgg16(torch.nn.Module):
         return out
 
 if __name__ == "__main__":
-    model = SACANet()
+    model = SACANet().cuda()
     print(model)
-    input = torch.randn(1,3,256,256)
+    input = torch.randn(1,3,1400,1400).cuda()
     out = model(input)
     print(out.size())

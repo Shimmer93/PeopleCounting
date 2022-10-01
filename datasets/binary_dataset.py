@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 import torchvision.transforms.functional as F
+from PIL import Image
 
 import random
 
@@ -9,15 +10,16 @@ from utils.data import random_crop, get_padding
 
 class BinaryMapDataset(BaseDataset):
 
-    def __init__(self, dname, root, crop_size, downsample, log_para, method, split_file):
+    def __init__(self, root, crop_size, downsample, log_para, method, is_grey):
         assert crop_size % downsample == 0
-
-        super().__init__(dname, root, crop_size, downsample, log_para, method, split_file)
+        super().__init__(root, crop_size, downsample, log_para, method, is_grey)
 
     def __getitem__(self, index):
-        img = self._get_image(index)
-        gt = self._get_gt(index)
-
+        img_fn = self.img_fns[index]
+        img = Image.open(img_fn).convert('RGB')
+        gt_fn = img_fn.replace('jpg', 'npy')
+        gt = np.load(gt_fn)
+        
         if self.method == 'train':
             return tuple(self._train_transform(img, gt))
         elif self.method in ['val', 'test']:
@@ -51,16 +53,32 @@ class BinaryMapDataset(BaseDataset):
         return discrete_map
 
     def _train_transform(self, img, gt):
-        wd, ht = img.size
-        st_size = 1.0 * min(wd, ht)
+        w, h = img.size
         assert len(gt) >= 0
-        bmap = self._gen_discrete_map(ht, wd, gt)
+
+        bmap = self._gen_discrete_map(h, w, gt)
         bmap = torch.from_numpy(bmap)
 
+        # Grey Scale
+        if random.random() > 0.88:
+            img = img.convert('L').convert('RGB')
+
+        # Resizing
+        factor = random.random() * 0.5 + 0.75
+        new_w = (int)(w * factor)
+        new_h = (int)(h * factor)
+        if min(new_w, new_h) >= self.crop_size:
+            w = new_w
+            h = new_h
+            img = img.resize((w, h))
+            bmap = F.resize(bmap, (h, w))
+            gt = gt * factor
+        
         # Padding
+        st_size = 1.0 * min(w, h)
         if st_size < self.crop_size:
             st_size = self.crop_size
-            padding, ht, wd = get_padding(ht, wd, self.crop_size, self.crop_size)
+            padding, h, w = get_padding(h, w, self.crop_size, self.crop_size)
             left, top, _, _ = padding
 
             img = F.pad(img, padding)
@@ -68,12 +86,12 @@ class BinaryMapDataset(BaseDataset):
             gt = gt + [left, top]
 
         # Cropping
+        i, j = random_crop(h, w, self.crop_size, self.crop_size)
         h, w = self.crop_size, self.crop_size
-        h2, w2 = self.crop_size, self.crop_size
-
-        i, j = random_crop(ht, wd, h, w)
         img = F.crop(img, i, j, h, w)
-        bmap = F.crop(bmap, i, j, h2, w2)
+        h, w = self.crop_size, self.crop_size
+        bmap = F.crop(bmap, i, j, h, w)
+        h, w = self.crop_size, self.crop_size
 
         if len(gt) > 0:
             gt = gt - [j, i]
@@ -100,6 +118,6 @@ class BinaryMapDataset(BaseDataset):
         # Post-processing
         img = self.transform(img)
         gt = torch.from_numpy(gt.copy()).float()
-        bmap = torch.unsqueeze(bmap, 0)
+        bmap = torch.unsqueeze(bmap, 0).float()
 
         return img, gt, bmap

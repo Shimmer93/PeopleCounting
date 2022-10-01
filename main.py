@@ -10,6 +10,7 @@ from models import Model
 from losses import Loss
 from datasets import Dataset
 from losses.post_prob import Post_Prob
+from utils.misc import AverageMeter
 
 def train_collate(batch, dataset):
     if dataset == 'Bayesian':
@@ -19,12 +20,14 @@ def train_collate(batch, dataset):
         targets = transposed_batch[2]
         st_sizes = torch.FloatTensor(transposed_batch[3])
         return images, points, targets, st_sizes
+
     elif dataset == 'Binary':
         transposed_batch = list(zip(*batch))
         images = torch.stack(transposed_batch[0], 0)
         points = transposed_batch[1]  # the number of points is not fixed, keep it as a list of tensor
         gt_discretes = torch.stack(transposed_batch[2], 0)
         return images, points, gt_discretes
+
     elif dataset == 'Density':
         transposed_batch = list(zip(*batch))
         images = torch.stack(transposed_batch[0], 0)
@@ -42,9 +45,9 @@ class Trainer(pl.LightningModule):
         self.save_hyperparameters(hparams)
         self.model = Model(self.hparams.model_name, **self.hparams.model)
         self.loss = Loss(self.hparams.loss_name, **self.hparams.loss)
-        self.train_dataset = Dataset(self.hparams.dataset_name, method='train', split_file=self.hparams.train_split, **self.hparams.dataset_train)
-        self.val_dataset = Dataset(self.hparams.dataset_name, method='val', split_file=self.hparams.val_split, **self.hparams.dataset_val)
-        self.test_dataset = Dataset(self.hparams.dataset_name, method='test', split_file=self.hparams.test_split, **self.hparams.dataset_test)
+        self.train_dataset = Dataset(self.hparams.dataset_name, method='train', **self.hparams.dataset)
+        self.val_dataset = Dataset(self.hparams.dataset_name, method='val', **self.hparams.dataset)
+        self.test_dataset = Dataset(self.hparams.dataset_name, method='test', **self.hparams.dataset)
 
         if self.hparams.loss_name == 'Bayesian':
             self.post_prob = Post_Prob(**self.hparams.post_prob)
@@ -80,6 +83,7 @@ class Trainer(pl.LightningModule):
             preds = self.forward(imgs)
             prob_list = self.post_prob(gts, st_sizes)
             loss = self.loss(prob_list, targs, preds)
+
         elif self.hparams.dataset_name == 'Binary':
             imgs, gts, bmaps = batch
             preds = self.forward(imgs)
@@ -97,6 +101,7 @@ class Trainer(pl.LightningModule):
             tv_loss = (self.tv_loss(preds_normed, bmaps_normed).sum(1).sum(1).sum(1) * gd_count).mean(0) * self.hparams.wtv
 
             loss = ot_loss + tv_loss + count_loss
+
         elif self.hparams.dataset_name == 'Density':
             imgs, gts, dmaps = batch
             preds = self.forward(imgs)
@@ -105,30 +110,92 @@ class Trainer(pl.LightningModule):
         return loss
 
     def validation_step(self, batch, batch_idx):
-        imgs, gts = batch
-        preds = self.forward(imgs)
-        preds = torch.sum(preds, dim=(1,2,3)).cpu()
-        targs = torch.tensor([gt.shape[0] for gt in gts]).cpu()
-        for pred, targ in zip(preds, targs):
-            mse_loss = torch.sqrt(torch.nn.MSELoss()(pred, targ))
-            mae_loss = torch.nn.L1Loss()(pred, targ)
-            self.log_dict({'val/MSE': mse_loss.item(), 'val/MAE': mae_loss.item()})
+        img, gt = batch
+        b, _, h, w = img.shape
+        assert b == 1, 'batch size should be 1 in validation'
+
+        if h >= 1400 or w >= 1400:
+            img_patches = []
+            pred_count = 0
+            h_stride = int(np.ceil(1.0 * h / 1400))
+            w_stride = int(np.ceil(1.0 * w / 1400))
+            h_step = h // h_stride
+            w_step = w // w_stride
+            for i in range(h_stride):
+                for j in range(w_stride):
+                    h_start = i * h_step
+                    if i != h_stride - 1:
+                        h_end = (i + 1) * h_step
+                    else:
+                        h_end = h
+                    w_start = j * w_step
+                    if j != w_stride - 1:
+                        w_end = (j + 1) * w_step
+                    else:
+                        w_end = w
+                    img_patches.append(img[:, :, h_start:h_end, w_start:w_end])
+            
+            for patch in img_patches:
+                pred = self.forward(patch)
+                pred_count += torch.sum(pred).item()
+
+        else:
+            pred = self.forward(img)
+            pred_count = torch.sum(pred).item()
+
+        gt_count = gt.shape[1]
+
+        mae = np.abs(pred_count - gt_count)
+        mse = (pred_count - gt_count) ** 2
+            
+        self.log_dict({'val/MSE': mse, 'val/MAE': mae})
 
     def test_step(self, batch, batch_idx):
-        imgs, gts = batch
-        preds = self.forward(imgs)
-        preds = torch.sum(preds, dim=0)
-        targs = torch.tensor([gt.shape[1] for gt in gts])
-        for pred, targ in zip(preds, targs):
-            mse_loss = torch.nn.MSELoss()(pred, targ)
-            mae_loss = torch.nn.L1Loss()(pred, targ)
-            self.log_dict({'test/MSE': mse_loss, 'test/MAE': mae_loss})
+        img, gt = batch
+        b, _, h, w = img.shape
+        assert b == 1, 'batch size should be 1 in testing'
+
+        if h >= 1400 or w >= 1400:
+            img_patches = []
+            pred_count = 0
+            h_stride = int(np.ceil(1.0 * h / 1400))
+            w_stride = int(np.ceil(1.0 * w / 1400))
+            h_step = h // h_stride
+            w_step = w // w_stride
+            for i in range(h_stride):
+                for j in range(w_stride):
+                    h_start = i * h_step
+                    if i != h_stride - 1:
+                        h_end = (i + 1) * h_step
+                    else:
+                        h_end = h
+                    w_start = j * w_step
+                    if j != w_stride - 1:
+                        w_end = (j + 1) * w_step
+                    else:
+                        w_end = w
+                    img_patches.append(img[:, :, h_start:h_end, w_start:w_end])
+            
+            for patch in img_patches:
+                pred = self.forward(patch)
+                pred_count += torch.sum(pred).item()
+
+        else:
+            pred = self.forward(img)
+            pred_count = torch.sum(pred).item()
+
+        gt_count = gt.shape[1]
+
+        mae = np.abs(pred_count - gt_count)
+        mse = (pred_count - gt_count) ** 2
+        
+        self.log_dict({'test/MSE': mse, 'test/MAE': mae})
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.model.parameters(), lr=self.hparams.lr)
         # scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=10, min_lr=1e-8, verbose=True)
         scheduler = torch.optim.lr_scheduler.OneCycleLR(
-            optimizer, max_lr=1e-3, total_steps=self.trainer.estimated_stepping_batches
+            optimizer, max_lr=self.hparams.lr, total_steps=self.trainer.estimated_stepping_batches
         )
         return {'optimizer': optimizer, 'lr_scheduler': scheduler}
 

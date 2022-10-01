@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 import torchvision.transforms.functional as F
+from PIL import Image
 
 import random
 import os
@@ -13,48 +14,51 @@ from utils.data import random_crop, get_padding
 
 class DensityMapDataset(BaseDataset):
 
-    def __init__(self, dname, root, dmap_path, crop_size, downsample, log_para, method, split_file):
+    def __init__(self, root, dmap_path, crop_size, downsample, log_para, method, is_grey):
         assert crop_size % downsample == 0
-
-        super().__init__(dname, root, crop_size, downsample, log_para, method, split_file)
+        super().__init__(root, crop_size, downsample, log_para, method, is_grey)
         self.dmap_path = dmap_path
     
     def __getitem__(self, index):
-        img = self._get_image(index)
-        gt = self._get_gt(index)
-        dmap = self._get_dmap(index)
+        img_fn = self.img_fns[index]
+        img = Image.open(img_fn).convert('RGB')
+        gt_fn = img_fn.replace('jpg', 'npy')
+        gt = np.load(gt_fn)
+        dmap_fn = os.path.join(self.dmap_path, img_fn.split('/')[-1].split('.')[0]+'.npy')
+        dmap = np.load(dmap_fn)
 
         if self.method == 'train':
             return tuple(self._train_transform(img, gt, dmap))
         elif self.method in ['val', 'test']:
             return tuple(self._val_transform(img, gt))
 
-    def _get_dmap(self, index):
-        img_fn = self.img_fns[index]
-        dmap_fn = os.path.join(self.dmap_path, img_fn.split('/')[-1].split('.')[0]+'.npy')
-        dmap = np.load(dmap_fn)
-        return dmap
-
-    def _cal_dists(self, pts):
-        square = np.sum(pts*pts, axis=1)
-        dists = np.sqrt(np.maximum(square[:, None] - 2*np.matmul(pts, pts.T) + square[None, :], 0.0))
-        if len(pts) == 1:
-            return np.array([[4.0]])
-        elif len(pts) < 4:
-            return np.mean(dists[:,1:], axis=1, keepdims=True)
-        dists = np.mean(np.partition(dists, 3, axis=1)[:, 1:4], axis=1, keepdims=True)
-        return dists
-
-    def _train_transform(self, img, gt, dmap):
-        wd, ht = img.size
-        st_size = 1.0 * min(wd, ht)
+    def _train_transform(self, img, gt):
+        w, h = img.size
         assert len(gt) >= 0
+
+        dmap = self._gen_discrete_map(h, w, gt)
         dmap = torch.from_numpy(dmap)
 
+        # Grey Scale
+        if random.random() > 0.88:
+            img = img.convert('L').convert('RGB')
+
+        # Resizing
+        factor = random.random() * 0.5 + 0.75
+        new_w = (int)(w * factor)
+        new_h = (int)(h * factor)
+        if min(new_w, new_h) >= self.crop_size:
+            w = new_w
+            h = new_h
+            img = img.resize((w, h))
+            dmap = F.resize(dmap, (h, w))
+            gt = gt * factor
+        
         # Padding
+        st_size = 1.0 * min(w, h)
         if st_size < self.crop_size:
             st_size = self.crop_size
-            padding, ht, wd = get_padding(ht, wd, self.crop_size, self.crop_size)
+            padding, h, w = get_padding(h, w, self.crop_size, self.crop_size)
             left, top, _, _ = padding
 
             img = F.pad(img, padding)
@@ -62,12 +66,12 @@ class DensityMapDataset(BaseDataset):
             gt = gt + [left, top]
 
         # Cropping
+        i, j = random_crop(h, w, self.crop_size, self.crop_size)
         h, w = self.crop_size, self.crop_size
-        h2, w2 = self.crop_size, self.crop_size
-
-        i, j = random_crop(ht, wd, h, w)
         img = F.crop(img, i, j, h, w)
-        dmap = F.crop(dmap, i, j, h2, w2)
+        h, w = self.crop_size, self.crop_size
+        dmap = F.crop(dmap, i, j, h, w)
+        h, w = self.crop_size, self.crop_size
 
         if len(gt) > 0:
             gt = gt - [j, i]
@@ -85,39 +89,18 @@ class DensityMapDataset(BaseDataset):
         gt = gt / self.downsample
 
         # Flipping
-        # if random.random() > 0.5:
-        #     img = F.hflip(img)
-        #     dmap = F.hflip(dmap)
-        #     if len(gt) > 0:
-        #         gt[:, 0] = w - gt[:, 0]
+        if random.random() > 0.5:
+            img = F.hflip(img)
+            dmap = F.hflip(dmap)
+            if len(gt) > 0:
+                gt[:, 0] = w - gt[:, 0]
         
         # Post-processing
         img = self.transform(img)
         gt = torch.from_numpy(gt.copy()).float()
-        dmap = torch.unsqueeze(dmap, 0)
+        dmap = torch.unsqueeze(dmap, 0).float()
 
         return img, gt, dmap
-
-    def _val_transform(self, img, gt):
-        # Padding
-        wd, ht = img.size
-        new_wd = (wd // self.downsample + 1) * self.downsample if wd % self.downsample != 0 else wd
-        new_ht = (ht // self.downsample + 1) * self.downsample if ht % self.downsample != 0 else ht
-
-        padding, ht, wd = get_padding(ht, wd, new_ht, new_wd)
-        left, top, _, _ = padding
-
-        img = F.pad(img, padding)
-        gt = gt + [left, top]
-
-        # Downsampling
-        gt = gt / self.downsample
-
-        # Post-processing
-        img = self.transform(img)
-        gt = torch.from_numpy(gt.copy()).float()
-
-        return img, gt
 
 if __name__ == '__main__':
     ds = DensityMapDataset('UCF_CC_50', '/mnt/home/zpengac/USERDIR/Crowd_counting/datasets/UCF_CC_50',

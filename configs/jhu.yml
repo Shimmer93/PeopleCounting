@@ -19,47 +19,32 @@ trainer:
   devices: auto
   num_sanity_val_steps: 0
   detect_anomaly: True
-  max_epochs: 100
+  max_epochs: 300
 model:
   hparams:
     batch_size_train: 4
     batch_size_val: 1
     num_workers: 4
     lr: 0.0001
-    train_split: null
-    val_split: 'data/ShanghaiTechA/val.txt'
-    test_split: 'data/ShanghaiTechA/test.txt'
     model_name: 'SACANet'
-    loss_name: 'OT'
-    dataset_name: 'Binary'
+    loss_name: 'Bayesian'
+    dataset_name: 'Bayesian'
     log_para: 1
-    wot: 0.1
-    wtv: 0.01
     model:
       load_weights: false
     loss:
       device: 'cuda'
+      use_background: true
+    post_prob:
+      device: 'cuda'
+      sigma: 8.0
       c_size: 512
       stride: 8
-      norm_cood: 0
-      num_of_iter_in_ot: 100
-      reg: 10.0
-    dataset_train:
-      dname: 'SHHA'
-      root: '/mnt/data/smartcity/SHHA/train'
+      background_ratio: 0.15
+      use_background: True
+    dataset:
+      root: '/mnt/home/zpengac/USERDIR/Crowd_counting/datasets/jhu'
       crop_size: 512
-      downsample: 8
+      downsample: 1
       log_para: 1
-    dataset_val:
-      dname: 'SHHA'
-      root: '/mnt/data/smartcity/SHHA/test'
-      crop_size: 512
-      downsample: 8
-      log_para: 1
-    dataset_test:
-      dname: 'SHHA'
-      root: '/mnt/data/smartcity/SHHA/test'
-      crop_size: 512
-      downsample: 8
-      log_para: 1
-  
+      is_grey: False
