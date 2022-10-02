@@ -3,27 +3,32 @@ import torch
 import torchvision.transforms.functional as F
 from PIL import Image
 
+import os
 import random
 
-from datasets.base_dataset import BaseDataset
+from datasets.base_temporal_dataset import BaseTemporalDataset
 from utils.data import random_crop, cal_inner_area, get_padding
 
-class BayesianDataset(BaseDataset):
-    def __init__(self, root, crop_size, downsample, log_para, method, is_grey):
+class BayesianTemporalDataset(BaseTemporalDataset):
+
+    def __init__(self, root, crop_size, seq_len, downsample, log_para, method, is_grey):
         assert crop_size % downsample == 0
-        super().__init__(root, crop_size, downsample, log_para, method, is_grey)
+        super().__init__(root, crop_size, seq_len, downsample, log_para, method, is_grey)
 
     def __getitem__(self, index):
         img_fn = self.img_fns[index]
-        img = Image.open(img_fn).convert('RGB')
+        frame_id = int(os.path.basename(img_fn).split('_')[1].split('.')[0])
+        frame_ids = [np.maximum(frame_id - i, 1) for i in range(self.seq_len)]
+        img_fns = [img_fn.replace('_'+str(frame_id).zfill(3), '_'+str(id).zfill(3)) for id in frame_ids]
+        imgs = [Image.open(fn).convert('RGB') for fn in img_fns]
         gt_fn = img_fn.replace('jpg', 'npy')
         gt = np.load(gt_fn)
         dists = self._cal_dists(gt)
-        
+
         if self.method == 'train':
-            return tuple(self._train_transform(img, gt, dists))
+            return tuple(self._train_transform(imgs, gt, dists))
         elif self.method in ['val', 'test']:
-            return tuple(self._val_transform(img, gt))
+            return tuple(self._val_transform(imgs, gt))
 
     def _cal_dists(self, pts):
         if len(pts) == 0:
@@ -37,13 +42,13 @@ class BayesianDataset(BaseDataset):
         dists = np.mean(np.partition(dists, 3, axis=1)[:, 1:4], axis=1, keepdims=True)
         return dists
 
-    def _train_transform(self, img, gt, dists):
-        w, h = img.size
+    def _train_transform(self, imgs, gt, dists):
+        w, h = imgs[0].size
         assert len(gt) >= 0
 
         # Grey Scale
         if random.random() > 0.88:
-            img = img.convert('L').convert('RGB')
+            imgs = [img.convert('L').convert('RGB') for img in imgs]
 
         # Resizing
         factor = random.random() * 0.5 + 0.75
@@ -52,23 +57,26 @@ class BayesianDataset(BaseDataset):
         if min(new_w, new_h) >= self.crop_size:
             w = new_w
             h = new_h
-            img = img.resize((w, h))
+            imgs = [img.resize((w, h)) for img in imgs]
             gt = gt * factor
+
+        imgs = [F.to_tensor(img) for img in imgs]
+        imgs = torch.stack(imgs, dim=0)
         
         # Padding
-        st_size = min(w, h)
+        st_size = 1.0 * min(w, h)
         if st_size < self.crop_size:
             st_size = self.crop_size
             padding, h, w = get_padding(h, w, self.crop_size, self.crop_size)
             left, top, _, _ = padding
 
-            img = F.pad(img, padding)
+            imgs = F.pad(imgs, padding)
             gt = gt + [left, top]
 
         # Cropping
         i, j = random_crop(h, w, self.crop_size, self.crop_size)
         h, w = self.crop_size, self.crop_size
-        img = F.crop(img, i, j, h, w)
+        imgs = F.crop(imgs, i, j, h, w)
         h, w = self.crop_size, self.crop_size
 
         if len(gt) > 0:
@@ -91,15 +99,15 @@ class BayesianDataset(BaseDataset):
 
         # Flipping
         if random.random() > 0.5:
-            img = F.hflip(img)
+            imgs = F.hflip(imgs)
         if len(gt) > 0:
             gt[:, 0] = w - gt[:, 0]
         else:
             targ = np.array([])
         
         # Post-processing
-        img = self.transform(img)
+        imgs = self.transform(imgs).transpose(0, 1)
         gt = torch.from_numpy(gt.copy()).float()
         targ = torch.from_numpy(targ.copy()).float()
 
-        return img, gt, targ, st_size
+        return imgs, gt, targ, st_size

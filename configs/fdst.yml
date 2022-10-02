@@ -26,25 +26,26 @@ model:
     batch_size_val: 1
     num_workers: 4
     lr: 0.001
-    model_name: 'SACANet'
+    model_name: 'VideoSwin'
     loss_name: 'Bayesian'
-    dataset_name: 'Bayesian'
+    dataset_name: 'BayesianTemporal'
     log_para: 1
     model:
-      load_weights: false
+      pretrained: False
     loss:
       device: 'cuda'
-      use_background: true
+      use_background: True
     post_prob:
       device: 'cuda'
       sigma: 8.0
-      c_size: 512
-      stride: 8
+      c_size: 224
+      stride: 16
       background_ratio: 0.15
       use_background: True
     dataset:
-      root: '/mnt/home/zpengac/USERDIR/Crowd_counting/datasets/jhu'
-      crop_size: 512
+      root: '/mnt/home/zpengac/USERDIR/Crowd_counting/datasets/fdst'
+      crop_size: 224
+      seq_len: 16
       downsample: 1
       log_para: 1
       is_grey: False

@@ -13,7 +13,7 @@ from losses.post_prob import Post_Prob
 from utils.misc import AverageMeter
 
 def train_collate(batch, dataset):
-    if dataset == 'Bayesian':
+    if dataset in ['Bayesian', 'BayesianTemporal']:
         transposed_batch = list(zip(*batch))
         images = torch.stack(transposed_batch[0], 0)
         points = transposed_batch[1]  # the number of points is not fixed, keep it as a list of tensor
@@ -78,7 +78,7 @@ class Trainer(pl.LightningModule):
         return self.model(imgs)
 
     def training_step(self, batch, batch_idx):
-        if self.hparams.dataset_name == 'Bayesian':
+        if self.hparams.dataset_name in ['Bayesian', 'BayesianTemporal']:
             imgs, gts, targs, st_sizes = batch
             preds = self.forward(imgs)
             prob_list = self.post_prob(gts, st_sizes)
@@ -111,7 +111,10 @@ class Trainer(pl.LightningModule):
 
     def validation_step(self, batch, batch_idx):
         img, gt = batch
-        b, _, h, w = img.shape
+        if len(img.shape) == 4:
+            b, _, h, w = img.shape
+        else:
+            b, _, _, h, w = img.shape
         assert b == 1, 'batch size should be 1 in validation'
 
         if h >= 1400 or w >= 1400:
@@ -133,7 +136,7 @@ class Trainer(pl.LightningModule):
                         w_end = (j + 1) * w_step
                     else:
                         w_end = w
-                    img_patches.append(img[:, :, h_start:h_end, w_start:w_end])
+                    img_patches.append(img[..., h_start:h_end, w_start:w_end])
             
             for patch in img_patches:
                 pred = self.forward(patch)
@@ -152,7 +155,10 @@ class Trainer(pl.LightningModule):
 
     def test_step(self, batch, batch_idx):
         img, gt = batch
-        b, _, h, w = img.shape
+        if len(img.shape) == 4:
+            b, _, h, w = img.shape
+        else:
+            b, _, _, h, w = img.shape
         assert b == 1, 'batch size should be 1 in testing'
 
         if h >= 1400 or w >= 1400:
@@ -174,7 +180,7 @@ class Trainer(pl.LightningModule):
                         w_end = (j + 1) * w_step
                     else:
                         w_end = w
-                    img_patches.append(img[:, :, h_start:h_end, w_start:w_end])
+                    img_patches.append(img[..., h_start:h_end, w_start:w_end])
             
             for patch in img_patches:
                 pred = self.forward(patch)
