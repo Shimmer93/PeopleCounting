@@ -7,7 +7,7 @@ trainer:
     - class_path: pytorch_lightning.callbacks.ModelCheckpoint
       init_args:
         filename: epoch={epoch:03d}_mse={val/MSE:.2f}_mae={val/MAE:.2f}
-        monitor: val/MSE
+        monitor: val/MAE
         verbose: True
         save_last: True
         auto_insert_metric_name: False
@@ -26,6 +26,7 @@ model:
     batch_size_val: 1
     num_workers: 4
     lr: 0.001
+    weight_decay: 1.0e-5
     model_name: 'VideoSwin'
     loss_name: 'Bayesian'
     dataset_name: 'BayesianTemporal'

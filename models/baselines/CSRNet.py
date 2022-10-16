@@ -4,6 +4,7 @@ import torch
 import torch.nn as nn
 
 import collections
+from models.baselines.Twins import twins_svt_base
 
 class SeparableConv2d(nn.Module):
     def __init__(self,in_channels,out_channels,kernel_size=1,stride=1,padding=0,dilation=1,bias=False):
@@ -129,8 +130,120 @@ def make_layers(cfg, in_channels=3, batch_norm=False, dilation=False):
             in_channels = v
     return nn.Sequential(*layers)
 
+class CSRResNet(nn.Module):
+    def __init__(self, load_weights=False):
+        super(CSRResNet, self).__init__()
+        resnet = models.resnet50(weights=models.ResNet50_Weights.DEFAULT)
+        self.frontend = nn.Sequential(*resnet.children())[:-4]
+        self.backend_feat = [512, 512, 512, 256, 128, 64]
+        self.backend = make_layers(
+            self.backend_feat, in_channels=512, dilation=True)
+        self.output_layer = nn.Conv2d(64, 1, kernel_size=1)
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, x):
+        x = self.frontend(x)
+        x = self.backend(x)
+        x = self.output_layer(x)
+        # x = self.sigmoid(x)
+        return x
+
+    def _initialize_weights(self):
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                nn.init.kaiming_normal_(m.weight)
+                if m.bias is not None:
+                    nn.init.constant_(m.bias, 0)
+            elif isinstance(m, nn.BatchNorm2d):
+                nn.init.constant_(m.weight, 1)
+                nn.init.constant_(m.bias, 0)
+
+class CSRSwinTrans(nn.Module):
+    def __init__(self, load_weights=False):
+        super(CSRSwinTrans, self).__init__()
+        swin = models.swin_b(weights=models.Swin_B_Weights.DEFAULT)
+        self.frontend = nn.Sequential(*swin.children())[0][:4]
+        self.backend_feat = [512, 512, 512, 256, 128, 64]
+        self.backend = make_layers(
+            self.backend_feat, in_channels=256, dilation=True)
+        self.output_layer = nn.Conv2d(64, 1, kernel_size=1)
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, x):
+        x = self.frontend(x)
+        x = x.permute(0, 3, 1, 2)
+        x = self.backend(x)
+        x = self.output_layer(x)
+        # x = self.sigmoid(x)
+        return x
+
+    def _initialize_weights(self):
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                nn.init.kaiming_normal_(m.weight)
+                if m.bias is not None:
+                    nn.init.constant_(m.bias, 0)
+            elif isinstance(m, nn.BatchNorm2d):
+                nn.init.constant_(m.weight, 1)
+                nn.init.constant_(m.bias, 0)
+
+class CSRNext(nn.Module):
+    def __init__(self, load_weights=False):
+        super(CSRNext, self).__init__()
+        backbone = models.convnext_base(weights=models.ConvNeXt_Base_Weights.DEFAULT)
+        self.frontend = nn.Sequential(*backbone.children())[0][:4]
+        self.backend_feat = [512, 512, 512, 256, 128, 64]
+        self.backend = make_layers(
+            self.backend_feat, in_channels=256, dilation=True)
+        self.output_layer = nn.Conv2d(64, 1, kernel_size=1)
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, x):
+        x = self.frontend(x)
+        x = self.backend(x)
+        x = self.output_layer(x)
+        # x = self.sigmoid(x)
+        return x
+
+    def _initialize_weights(self):
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                nn.init.kaiming_normal_(m.weight)
+                if m.bias is not None:
+                    nn.init.constant_(m.bias, 0)
+            elif isinstance(m, nn.BatchNorm2d):
+                nn.init.constant_(m.weight, 1)
+                nn.init.constant_(m.bias, 0)
+
+class CSRTwins(nn.Module):
+    def __init__(self, load_weights=False):
+        super(CSRTwins, self).__init__()
+        self.frontend = twins_svt_base()
+        self.backend_feat = [512, 512, 512, 256, 128, 64]
+        self.backend = make_layers(
+            self.backend_feat, in_channels=192, dilation=True)
+        self.output_layer = nn.Conv2d(64, 1, kernel_size=1)
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, x):
+        x = self.frontend(x)
+        x = self.backend(x)
+        x = self.output_layer(x)
+        # x = self.sigmoid(x)
+        return x
+
+    def _initialize_weights(self):
+        for m in self.modules():
+            if isinstance(m, nn.Conv2d):
+                nn.init.kaiming_normal_(m.weight)
+                if m.bias is not None:
+                    nn.init.constant_(m.bias, 0)
+            elif isinstance(m, nn.BatchNorm2d):
+                nn.init.constant_(m.weight, 1)
+                nn.init.constant_(m.bias, 0)
+
 if __name__ == '__main__':
-    m = CSRNet()
-    x = torch.randn(2, 3, 32, 32)
+    m = CSRSwinTrans()
+    x = torch.randn(2, 3, 512, 512)
     y = m(x)
-    print(y)
+    print(y.shape)

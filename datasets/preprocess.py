@@ -135,6 +135,19 @@ def generate_data_fdst(im_path):
         points = points * rr
     return Image.fromarray(im), points
 
+def generate_data_vidcrowd(im_path, mat_path):
+    im = Image.open(im_path)
+    im_w, im_h = im.size
+    points = loadmat(mat_path)['annotation'].astype(np.float32)
+    idx_mask = (points[:, 0] >= 0) * (points[:, 0] <= im_w) * (points[:, 1] >= 0) * (points[:, 1] <= im_h)
+    points = points[idx_mask]
+    im_h, im_w, rr = cal_new_size(im_h, im_w, min_size, max_size)
+    im = np.array(im)
+    if rr != 1.0:
+        im = cv2.resize(np.array(im), (im_w, im_h), cv2.INTER_CUBIC)
+        points = points * rr
+    return Image.fromarray(im), points
+
 def run_jhu(origin_dir, save_dir, min_size, max_size):
     for phase in ['train', 'val', 'test']:
             sub_dir = os.path.join(origin_dir, phase)
@@ -305,6 +318,44 @@ def run_fdst(origin_dir, save_dir, min_size, max_size):
                 gd_save_path = im_save_path.replace('jpg', 'npy')
                 np.save(gd_save_path, points)
 
+def run_vidcrowd(origin_dir, save_dir, min_size, max_size):
+    for phase in ['train', 'test']:
+        sub_dir = os.path.join(origin_dir, f'VidCrowd_annotation_{phase}', 'annotation')
+        gt_list = glob(os.path.join(sub_dir, 's*', '*.mat'))
+        if phase == 'train':
+            val_video_list = ['s2', 's7', 's12', 's17']
+            val_gt_list = []
+            for val_video in val_video_list:
+                val_gt_list += glob(os.path.join(sub_dir, val_video, '*.mat'))
+            train_gt_list = list(set(gt_list) - set(val_gt_list))
+            sub_phase_list = ['train', 'val']
+            for sub_phase, sub_gt_list in zip(sub_phase_list, [train_gt_list, val_gt_list]):
+                sub_save_dir = os.path.join(save_dir, sub_phase)
+                if not os.path.exists(sub_save_dir):
+                    os.makedirs(sub_save_dir)
+                for gt_path in tqdm(sub_gt_list):
+                    name = os.path.basename(gt_path)
+                    name = name.replace('mat', 'jpg')
+                    im_path = os.path.join(origin_dir, 'images', name)
+                    im, points = generate_data_vidcrowd(im_path, gt_path)
+                    im_save_path = os.path.join(sub_save_dir, name)
+                    im.save(im_save_path)
+                    gd_save_path = im_save_path.replace('jpg', 'npy')
+                    np.save(gd_save_path, points)
+        else:
+            sub_save_dir = os.path.join(save_dir, 'test')
+            if not os.path.exists(sub_save_dir):
+                os.makedirs(sub_save_dir)
+            for gt_path in tqdm(gt_list):
+                name = os.path.basename(gt_path)
+                name = name.replace('mat', 'jpg')
+                im_path = os.path.join(origin_dir, 'images', name)
+                im, points = generate_data_vidcrowd(im_path, gt_path)
+                im_save_path = os.path.join(sub_save_dir, name)
+                im.save(im_save_path)
+                gd_save_path = im_save_path.replace('jpg', 'npy')
+                np.save(gd_save_path, points)
+
 def parse_args():
     parser = argparse.ArgumentParser(description='Test ')
     parser.add_argument('--origin-dir', default='E:\Dataset\Counting\jhu_crowd_v2.0',
@@ -315,7 +366,7 @@ def parse_args():
                         help='minimum image size')
     parser.add_argument('--max-size', default=1024, type=int,
                         help='maximum image size')
-    parser.add_argument('--dataset', default='jhu', type=str, choices=['jhu', 'qnrf', 'smartcity', 'sta', 'cc50', 'fdst'],
+    parser.add_argument('--dataset', default='jhu', type=str, choices=['jhu', 'qnrf', 'smartcity', 'sta', 'cc50', 'fdst', 'vidcrowd'],
                         help='dataset name')
     args = parser.parse_args()
     return args
@@ -340,5 +391,7 @@ if __name__ == '__main__':
         run_cc50(origin_dir, save_dir, min_size, max_size)
     elif dataset == 'fdst':
         run_fdst(origin_dir, save_dir, min_size, max_size)
+    elif dataset == 'vidcrowd':
+        run_vidcrowd(origin_dir, save_dir, min_size, max_size)
     else:
         raise NotImplementedError

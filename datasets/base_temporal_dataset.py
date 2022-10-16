@@ -12,10 +12,11 @@ from utils.data import random_crop, cal_inner_area, get_padding
 
 class BaseTemporalDataset(BaseDataset):
 
-    def __init__(self, root, crop_size, seq_len, downsample, log_para, method, is_grey):
+    def __init__(self, root, crop_size, seq_len, downsample, log_para, method, is_grey, channel_first=True):
         super().__init__(root, crop_size, downsample, log_para, method, is_grey)
 
         self.seq_len = seq_len
+        self.channel_first = channel_first
 
         if self.is_grey:
             self.transform = T.Compose([
@@ -96,11 +97,13 @@ class BaseTemporalDataset(BaseDataset):
         
         # Post-processing
         imgs = self.transform(imgs)
+        if self.channel_first:
+            imgs = imgs.transpose(0, 1)
         gt = torch.from_numpy(gt.copy()).float()
 
         return imgs, gt
 
-    def _val_transform(self, imgs, gt):
+    def _val_transform(self, imgs, gts):
         # Padding
         w, h = imgs[0].size
         new_w = (w // self.downsample + 1) * self.downsample if w % self.downsample != 0 else w
@@ -113,13 +116,15 @@ class BaseTemporalDataset(BaseDataset):
         imgs = torch.stack(imgs, dim=0)
 
         imgs = F.pad(imgs, padding)
-        gt = gt + [left, top]
+        gts = [gt + [left, top] for gt in gts]
 
         # Downsampling
-        gt = gt / self.downsample
+        gts = [gt / self.downsample for gt in gts]
 
         # Post-processing
         imgs = self.transform(imgs)
-        gt = torch.from_numpy(gt.copy()).float()
+        if self.channel_first:
+            imgs = imgs.transpose(0, 1)
+        gts = [torch.from_numpy(gt.copy()).float() for gt in gts]
 
-        return imgs, gt
+        return imgs, gts

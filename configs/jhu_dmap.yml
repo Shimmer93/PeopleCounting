@@ -22,30 +22,22 @@ trainer:
   max_epochs: 300
 model:
   hparams:
-    batch_size_train: 32
+    batch_size_train: 16
     batch_size_val: 1
     num_workers: 4
-    lr: 0.0001
-    train_split: 'data/SmartCity/train.txt'
-    val_split: 'data/SmartCity/val.txt'
-    test_split: 'data/SmartCity/test.txt'
+    lr: 0.001
+    weight_decay: 1.0e-5
     model_name: 'CSRNet'
-    loss_name: 'OT'
-    dataset_name: 'Binary'
-    wot: 0.1
-    wtv: 0.01
+    loss_name: 'MSE'
+    dataset_name: 'Density'
+    log_para: 1
     model:
       load_weights: false
     loss:
-      c_size: 512
-      stride: 8
-      norm_cood: 0
-      num_of_iter_in_ot: 100
-      reg: 10.0
+      reduction: 'mean'
     dataset:
-      dname: 'SmartCity'
-      root: '/mnt/home/zpengac/USERDIR/Crowd_counting/datasets/SmartCity'
+      root: '/mnt/home/zpengac/USERDIR/Crowd_counting/datasets/jhu'
       crop_size: 512
       downsample: 8
       log_para: 1
-  
+      is_grey: False

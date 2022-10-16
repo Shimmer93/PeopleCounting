@@ -5,6 +5,8 @@ from PIL import Image
 
 import random
 
+import sys
+sys.path.append('/mnt/home/zpengac/USERDIR/Crowd_counting/PeopleCounting')
 from datasets.base_dataset import BaseDataset
 from utils.data import random_crop, cal_inner_area, get_padding
 
@@ -23,7 +25,8 @@ class BayesianDataset(BaseDataset):
         if self.method == 'train':
             return tuple(self._train_transform(img, gt, dists))
         elif self.method in ['val', 'test']:
-            return tuple(self._val_transform(img, gt))
+            name = img_fn.split('/')[-1].split('.')[0]
+            return self._val_transform(img, gt)
 
     def _cal_dists(self, pts):
         if len(pts) == 0:
@@ -87,7 +90,7 @@ class BayesianDataset(BaseDataset):
             gt = gt - [j, i]  # change coodinate
 
         # Downsampling
-        gt = gt / self.downsample
+        #gt = gt / self.downsample
 
         # Flipping
         if random.random() > 0.5:
@@ -103,3 +106,8 @@ class BayesianDataset(BaseDataset):
         targ = torch.from_numpy(targ.copy()).float()
 
         return img, gt, targ, st_size
+
+if __name__ == '__main__':
+    dataset = BayesianDataset('/mnt/home/zpengac/USERDIR/Crowd_counting/datasets/jhu', 512, 512, 1, 'val', False)
+    for img, gt in dataset:
+        print(img.shape)

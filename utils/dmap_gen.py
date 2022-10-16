@@ -4,9 +4,11 @@ from tqdm import tqdm
 from scipy.io import loadmat
 from scipy.spatial import KDTree
 from scipy.ndimage import gaussian_filter
+from glob import glob
  
 import os
 import argparse
+from multiprocessing import Pool
 
 def gaussian_filter_density(img,points):
     '''
@@ -47,35 +49,27 @@ def gaussian_filter_density(img,points):
     #print ('done.')
     return density
 
+def run(img_fn):
+    gt_fn = img_fn.replace('.jpg', '.npy')
+    basename = os.path.basename(gt_fn).replace('.npy', '')
+    img = cv2.imread(img_fn)
+    gt = np.load(gt_fn)
+    dmap = gaussian_filter_density(img, gt)
+    dmap_fn = gt_fn.replace(basename, basename + '_dmap')
+    np.save(dmap_fn, dmap)
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--path', type=str)
-    parser.add_argument('--output_path', type=str)
-    parser.add_argument('--dataset', type=str)
     args = parser.parse_args()
 
     path = args.path
-    output_path = args.output_path
-    dataset = args.dataset
+    if not os.path.exists(path):
+        raise Exception("Path does not exist")
 
-    if dataset == 'SmartCity':
-        images = path + '/images'
-        anno = path + '/images'
-        gt_colname = 'loc'
-        gt_suffix = ''
-    elif dataset == 'UCF_CC_50':
-        images = path + ''
-        anno = path + ''
-        gt_colname = 'annPoints'
-        gt_suffix = '_ann'
+    img_fns = []
+    for phase in ['train', 'val', 'test']:
+        img_fns += glob(os.path.join(path, phase, '*.jpg'))
 
-    os.makedirs(output_path, exist_ok=True)
-
-    for fn in tqdm(os.listdir(images)):
-        if fn.endswith('.jpg'):
-            img = cv2.imread(os.path.join(images, fn))
-            fn_gt = os.path.join(anno, fn.split('.')[0]+f'{gt_suffix}.mat')
-            label = loadmat(fn_gt)
-            annPoints = label[gt_colname]
-            im_density = gaussian_filter_density(img, annPoints)
-            np.save(os.path.join(output_path, fn.split('.')[0]+'.npy'), im_density)
+    with Pool(8) as p:
+        r = list(tqdm(p.imap(run, img_fns), total=len(img_fns)))

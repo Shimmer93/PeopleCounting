@@ -22,30 +22,30 @@ trainer:
   max_epochs: 300
 model:
   hparams:
-    batch_size_train: 32
+    batch_size_train: 2
     batch_size_val: 1
     num_workers: 4
-    lr: 0.0001
-    train_split: 'data/SmartCity/train.txt'
-    val_split: 'data/SmartCity/val.txt'
-    test_split: 'data/SmartCity/test.txt'
-    model_name: 'CSRNet'
-    loss_name: 'OT'
-    dataset_name: 'Binary'
-    wot: 0.1
-    wtv: 0.01
+    lr: 0.001
+    weight_decay: 1.0e-5
+    model_name: 'HRFormer'
+    loss_name: 'Bayesian'
+    dataset_name: 'Bayesian'
+    log_para: 1
     model:
-      load_weights: false
+      arch: 'hrt_base'
     loss:
+      device: 'cuda'
+      use_background: true
+    post_prob:
+      device: 'cuda'
+      sigma: 8.0
       c_size: 512
-      stride: 8
-      norm_cood: 0
-      num_of_iter_in_ot: 100
-      reg: 10.0
+      stride: 4
+      background_ratio: 0.15
+      use_background: True
     dataset:
-      dname: 'SmartCity'
-      root: '/mnt/home/zpengac/USERDIR/Crowd_counting/datasets/SmartCity'
+      root: '/mnt/home/zpengac/USERDIR/Crowd_counting/datasets/jhu'
       crop_size: 512
-      downsample: 8
+      downsample: 1
       log_para: 1
-  
+      is_grey: False

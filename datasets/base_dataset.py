@@ -102,16 +102,18 @@ class BaseDataset(Dataset):
                 gt[:, 0] = w - gt[:, 0]
         
         # Post-processing
-        img = self.transform(img).transpose(0, 1)
+        img = self.transform(img)
         gt = torch.from_numpy(gt.copy()).float()
 
         return img, gt
 
     def _val_transform(self, img, gt):
+        ds = 512
+
         # Padding
         w, h = img.size
-        new_w = (w // self.downsample + 1) * self.downsample if w % self.downsample != 0 else w
-        new_h = (h // self.downsample + 1) * self.downsample if h % self.downsample != 0 else h
+        new_w = (w // ds + 1) * ds if w % ds != 0 else w
+        new_h = (h // ds + 1) * ds if h % ds != 0 else h
 
         padding, h, w = get_padding(h, w, new_h, new_w)
         left, top, _, _ = padding
@@ -120,10 +122,10 @@ class BaseDataset(Dataset):
         gt = gt + [left, top]
 
         # Downsampling
-        gt = gt / self.downsample
+        #gt = gt / self.downsample
 
         # Post-processing
-        img = self.transform(img).transpose(0, 1)
+        img = self.transform(img)
         gt = torch.from_numpy(gt.copy()).float()
 
         return img, gt

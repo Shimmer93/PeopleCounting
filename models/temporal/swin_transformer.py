@@ -670,20 +670,17 @@ class VideoSwinTransformer(nn.Module):
         super(VideoSwinTransformer, self).__init__()
         self.encoder = SwinTransformer3D(pretrained=pretrained)
         self.decoder = nn.Sequential(
-            nn.Conv2d(768*4, 512*4, kernel_size=1),
+            nn.ConvTranspose3d(768, 512, kernel_size=(1,3,3), stride=(1,2,2), padding=(0,1,1), output_padding=(0,1,1)),
+            nn.Conv3d(512, 256, kernel_size=3, padding=1),
+            nn.BatchNorm3d(256),
             nn.ReLU(inplace=True),
-            nn.PixelShuffle(upscale_factor=2),
-            nn.Conv2d(512, 256, kernel_size=3, padding=1),
+            nn.Conv3d(256, 128, kernel_size=3, padding=1),
             nn.ReLU(inplace=True),
-            nn.Conv2d(256, 128, kernel_size=3, padding=1),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(128, 1, kernel_size=1)
+            nn.Conv3d(128, 1, kernel_size=1)
         )
 
     def forward(self, x):
         x = self.encoder(x)
-        b, c, d, h, w = x.shape
-        x = x.reshape(b, c*d, h, w)
         x = self.decoder(x)
         return x
 

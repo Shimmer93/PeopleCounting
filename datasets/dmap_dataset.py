@@ -14,17 +14,17 @@ from utils.data import random_crop, get_padding
 
 class DensityMapDataset(BaseDataset):
 
-    def __init__(self, root, dmap_path, crop_size, downsample, log_para, method, is_grey):
+    def __init__(self, root, crop_size, downsample, log_para, method, is_grey):
         assert crop_size % downsample == 0
         super().__init__(root, crop_size, downsample, log_para, method, is_grey)
-        self.dmap_path = dmap_path
     
     def __getitem__(self, index):
         img_fn = self.img_fns[index]
         img = Image.open(img_fn).convert('RGB')
         gt_fn = img_fn.replace('jpg', 'npy')
         gt = np.load(gt_fn)
-        dmap_fn = os.path.join(self.dmap_path, img_fn.split('/')[-1].split('.')[0]+'.npy')
+        basename = os.path.basename(img_fn).replace('.jpg', '')
+        dmap_fn = gt_fn.replace(basename, basename + '_dmap')
         dmap = np.load(dmap_fn)
 
         if self.method == 'train':
@@ -32,12 +32,11 @@ class DensityMapDataset(BaseDataset):
         elif self.method in ['val', 'test']:
             return tuple(self._val_transform(img, gt))
 
-    def _train_transform(self, img, gt):
+    def _train_transform(self, img, gt, dmap):
         w, h = img.size
         assert len(gt) >= 0
 
-        dmap = self._gen_discrete_map(h, w, gt)
-        dmap = torch.from_numpy(dmap)
+        dmap = torch.from_numpy(dmap).unsqueeze(0)
 
         # Grey Scale
         if random.random() > 0.88:
@@ -52,7 +51,8 @@ class DensityMapDataset(BaseDataset):
             h = new_h
             img = img.resize((w, h))
             dmap = F.resize(dmap, (h, w))
-            gt = gt * factor
+            if len(gt) > 0:
+                gt = gt * factor
         
         # Padding
         st_size = 1.0 * min(w, h)
@@ -63,7 +63,8 @@ class DensityMapDataset(BaseDataset):
 
             img = F.pad(img, padding)
             dmap = F.pad(dmap, padding)
-            gt = gt + [left, top]
+            if len(gt) > 0:
+                gt = gt + [left, top]
 
         # Cropping
         i, j = random_crop(h, w, self.crop_size, self.crop_size)
@@ -84,9 +85,10 @@ class DensityMapDataset(BaseDataset):
         # Downsampling
         down_w = w // self.downsample
         down_h = h // self.downsample
-        dmap = dmap.reshape([down_h, self.downsample, down_w, self.downsample]).sum(dim=(1, 3))
+        dmap = dmap.reshape([1, down_h, self.downsample, down_w, self.downsample]).sum(dim=(2, 4))
 
-        gt = gt / self.downsample
+        if len(gt) > 0:
+            gt = gt / self.downsample
 
         # Flipping
         if random.random() > 0.5:
@@ -98,7 +100,7 @@ class DensityMapDataset(BaseDataset):
         # Post-processing
         img = self.transform(img)
         gt = torch.from_numpy(gt.copy()).float()
-        dmap = torch.unsqueeze(dmap, 0).float()
+        dmap = dmap.float()
 
         return img, gt, dmap
 

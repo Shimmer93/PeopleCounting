@@ -11,7 +11,7 @@ class Bay_Loss(Module):
     def forward(self, prob_list, target_list, pre_density):
         loss = 0
         for idx, prob in enumerate(prob_list):  # iterative through each sample
-            if prob is None:  # image contains no annotation points
+            if prob is None or prob.shape[0] == 0:  # image contains no annotation points
                 pre_count = torch.sum(pre_density[idx])
                 target = torch.zeros((1,), dtype=torch.float32, device=self.device)
             else:
