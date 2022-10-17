@@ -3,6 +3,7 @@ from losses.ot_loss import OT_Loss
 from losses.dms_ssim import NORMMSSSIM
 from losses.lstn_loss import LSTN_Loss, MLSTN_Loss
 from losses.tan_loss import TAN_Loss
+from losses.prl import PRL
 
 from torch.nn import MSELoss, L1Loss
 
@@ -23,3 +24,5 @@ def Loss(name, *args, **kwargs):
         return MLSTN_Loss(*args, **kwargs)
     elif name == 'TAN':
         return TAN_Loss(*args, **kwargs)
+    elif name == 'PRL':
+        return PRL(*args, **kwargs)

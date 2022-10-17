@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torchvision import models
-
+from fastai.layers import TimeDistributed
 
 class MLSTN(nn.Module):
     def __init__(self, input_size=(72, 112)):
@@ -143,3 +143,24 @@ def make_layers(cfg, in_channels=3, batch_norm=False, dilation=False):
                 layers += [conv2d, nn.ReLU(inplace=True)]
             in_channels = v
     return nn.Sequential(*layers)
+
+class TemporalMLSTN(nn.Module):
+    def __init__(self, input_size=(360, 640)):
+        super(TemporalMLSTN, self).__init__()
+        self.model = TimeDistributed(MLSTN(input_size))
+
+    @torch.cuda.amp.autocast()
+    def forward(self, x):
+        """
+        :param x: input with size (B, T, 3, 360, 640)
+        :return: output with size (B, T, 1, 90, 160)
+        """
+        x = self.model(x)
+        return x
+
+if __name__ == '__main__':
+    # test
+    model = TemporalMLSTN()
+    x = torch.randn(2, 5, 3, 360, 640)
+    y = model(x)
+    print(y.shape)

@@ -4,9 +4,9 @@ import torch.nn.functional as F
 import copy
 
 # if two parts are jointly trained, use fastVCC.
-class FastVCC(nn.Module):
+class TAN(nn.Module):
     def __init__(self, in_channels=3, out_channels=1, len_frames=3):
-        super(FastVCC, self).__init__()
+        super(TAN, self).__init__()
         self.len_frames = len_frames
         self.lcn = LCN(in_channels=3, out_channels=1)
         self.drbs = DRBs(num_stages=3, num_layers=3, num_f_maps=5, in_channels=self.len_frames, out_channels=self.len_frames)
@@ -165,7 +165,7 @@ def make_layers(cfg, in_channels=3, batch_norm=False, dilation=False):
     return nn.Sequential(*layers)
 
 if __name__ == '__main__':
-    m = FastVCC(len_frames=5)
+    m = TAN(len_frames=5)
     x = torch.randn(1, 5, 3, 256, 256)
     y = m(x)
     print(y.shape)

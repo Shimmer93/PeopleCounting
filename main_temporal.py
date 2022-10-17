@@ -120,7 +120,23 @@ class Trainer(pl.LightningModule):
         elif self.hparams.dataset_name == 'DensityTemporal':
             imgs, gts, dmaps = batch
             preds = self.forward(imgs)
-            loss = self.loss(preds * self.hparams.log_para, dmaps * self.hparams.log_para)
+            b, t, c, h, w = preds.shape
+            if self.hparams.loss_name == 'LSTN':
+                preds_t0, preds_t1_blocks = preds
+                loss = self.loss(preds_t0, preds_t1_blocks, gts, imgs)
+            elif self.hparams.loss_name == 'MLSTN':
+                preds_t012, preds_t3 = preds
+                loss = self.loss(preds_t012, preds_t3, gts, imgs)
+            elif self.hparams.loss_name == 'TAN':
+                pred_maps, pred_counts = preds
+                gt_counts = np.zeros((b, t))
+                for i in range(b):
+                    for j in range(t):
+                        gt_counts[i, j] = len(gts[i][j])
+                gt_counts = torch.from_numpy(gt_counts).float()
+                loss = self.loss(pred_maps, pred_counts, dmaps, gt_counts)
+            else:
+                loss = self.loss(preds * self.hparams.log_para, dmaps * self.hparams.log_para)
         
         return loss
 
