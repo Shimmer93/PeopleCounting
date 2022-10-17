@@ -30,7 +30,8 @@ model:
     model_name: 'CSRNet'
     loss_name: 'MSE'
     dataset_name: 'Density'
-    log_para: 1
+    log_para: 100
+    patch_size: 1400
     model:
       load_weights: false
     loss:
@@ -41,3 +42,4 @@ model:
       downsample: 8
       log_para: 1
       is_grey: False
+      unit_size: 0

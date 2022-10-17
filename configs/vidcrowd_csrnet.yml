@@ -14,39 +14,37 @@ trainer:
         save_on_train_epoch_end: False
         save_weights_only: True
         mode: min
+  logger:
+    class_path: pytorch_lightning.loggers.TensorBoardLogger
+    init_args:
+      save_dir: 'logs'
+      version: vidcrowd_csrnet
   benchmark: True
   accelerator: auto
   devices: auto
   num_sanity_val_steps: 0
   detect_anomaly: True
-  max_epochs: 300
+  max_epochs: 100
 model:
   hparams:
-    batch_size_train: 4
+    batch_size_train: 16
     batch_size_val: 1
-    num_workers: 4
+    num_workers: 16
     lr: 0.001
     weight_decay: 1.0e-5
-    model_name: 'CCTrans'
-    loss_name: 'Bayesian'
-    dataset_name: 'Bayesian'
-    log_para: 1
-    patch_size: 512
+    model_name: 'CSRNet'
+    loss_name: 'MSE'
+    dataset_name: 'Density'
+    log_para: 100
+    patch_size: 1400
     model:
-      pretrained: False
+      load_weights: false
     loss:
-      device: 'cuda'
-      use_background: true
-    post_prob:
-      device: 'cuda'
-      sigma: 8.0
-      c_size: 512
-      stride: 8
-      background_ratio: 0.15
-      use_background: True
+      reduction: 'mean'
     dataset:
-      root: '/mnt/home/zpengac/USERDIR/Crowd_counting/datasets/jhu'
+      root: '/mnt/home/zpengac/USERDIR/Crowd_counting/datasets/vidcrowd'
       crop_size: 512
       downsample: 8
       log_para: 1
       is_grey: False
+      unit_size: 0

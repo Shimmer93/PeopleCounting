@@ -11,9 +11,9 @@ from datasets.base_dataset import BaseDataset
 from utils.data import random_crop, cal_inner_area, get_padding
 
 class BayesianDataset(BaseDataset):
-    def __init__(self, root, crop_size, downsample, log_para, method, is_grey):
+    def __init__(self, root, crop_size, downsample, log_para, method, is_grey, unit_size):
         assert crop_size % downsample == 0
-        super().__init__(root, crop_size, downsample, log_para, method, is_grey)
+        super().__init__(root, crop_size, downsample, log_para, method, is_grey, unit_size)
 
     def __getitem__(self, index):
         img_fn = self.img_fns[index]

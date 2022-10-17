@@ -13,13 +13,14 @@ from utils.data import random_crop, get_padding
 
 class BaseDataset(Dataset):
 
-    def __init__(self, root, crop_size, downsample, log_para, method, is_grey):
+    def __init__(self, root, crop_size, downsample, log_para, method, is_grey, unit_size):
         self.root = root
         self.crop_size = crop_size
         self.downsample = downsample
         self.log_para = log_para
         self.method = method
         self.is_grey = is_grey
+        self.unit_size = unit_size
 
         if self.is_grey:
             self.transform = T.Compose([
@@ -108,21 +109,21 @@ class BaseDataset(Dataset):
         return img, gt
 
     def _val_transform(self, img, gt):
-        ds = 512
+        if self.unit_size > 0:
+            # Padding
+            w, h = img.size
+            new_w = (w // self.unit_size + 1) * self.unit_size if w % self.unit_size != 0 else w
+            new_h = (h // self.unit_size + 1) * self.unit_size if h % self.unit_size != 0 else h
 
-        # Padding
-        w, h = img.size
-        new_w = (w // ds + 1) * ds if w % ds != 0 else w
-        new_h = (h // ds + 1) * ds if h % ds != 0 else h
+            padding, h, w = get_padding(h, w, new_h, new_w)
+            left, top, _, _ = padding
 
-        padding, h, w = get_padding(h, w, new_h, new_w)
-        left, top, _, _ = padding
-
-        img = F.pad(img, padding)
-        gt = gt + [left, top]
+            img = F.pad(img, padding)
+            if len(gt) > 0:
+                gt = gt + [left, top]
 
         # Downsampling
-        #gt = gt / self.downsample
+        gt = gt / self.downsample
 
         # Post-processing
         img = self.transform(img)

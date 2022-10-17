@@ -4,7 +4,6 @@ import torch
 import torch.nn as nn
 
 import collections
-from models.baselines.Twins import twins_svt_base
 
 class SeparableConv2d(nn.Module):
     def __init__(self,in_channels,out_channels,kernel_size=1,stride=1,padding=0,dilation=1,bias=False):
@@ -243,7 +242,7 @@ class CSRTwins(nn.Module):
                 nn.init.constant_(m.bias, 0)
 
 if __name__ == '__main__':
-    m = CSRSwinTrans()
+    m = CSRNet()
     x = torch.randn(2, 3, 512, 512)
     y = m(x)
     print(y.shape)

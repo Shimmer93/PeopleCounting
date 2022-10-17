@@ -7,6 +7,7 @@ from models.baselines.BL import BL_VGG
 from models.baselines.CCTrans import alt_gvt_large
 from models.baselines.DSSINet import CRFVGG
 from models.baselines.MSFANet import MSFANet
+from models.baselines.MCNN import MCNN
 
 from models.temporal.swin_transformer import VideoSwinTransformer
 
@@ -39,5 +40,7 @@ def Model(name, *args, **kwargs):
         return CRFVGG(*args, **kwargs)
     elif name == 'MSFANet':
         return MSFANet(*args, **kwargs)
+    elif name == 'MCNN':
+        return MCNN(*args, **kwargs)
     else:
         raise NotImplementedError

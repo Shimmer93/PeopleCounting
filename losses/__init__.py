@@ -1,6 +1,8 @@
 from losses.bay_loss import Bay_Loss
 from losses.ot_loss import OT_Loss
 from losses.dms_ssim import NORMMSSSIM
+from losses.lstn_loss import LSTN_Loss, MLSTN_Loss
+from losses.tan_loss import TAN_Loss
 
 from torch.nn import MSELoss, L1Loss
 
@@ -15,3 +17,9 @@ def Loss(name, *args, **kwargs):
         return OT_Loss(*args, **kwargs)
     elif name == 'DMS_SSIM':
         return NORMMSSSIM(*args, **kwargs)
+    elif name == 'LSTN':
+        return LSTN_Loss(*args, **kwargs)
+    elif name == 'MLSTN':
+        return MLSTN_Loss(*args, **kwargs)
+    elif name == 'TAN':
+        return TAN_Loss(*args, **kwargs)

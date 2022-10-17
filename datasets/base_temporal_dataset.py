@@ -12,8 +12,8 @@ from utils.data import random_crop, cal_inner_area, get_padding
 
 class BaseTemporalDataset(BaseDataset):
 
-    def __init__(self, root, crop_size, seq_len, downsample, log_para, method, is_grey, channel_first=True):
-        super().__init__(root, crop_size, downsample, log_para, method, is_grey)
+    def __init__(self, root, crop_size, seq_len, downsample, log_para, method, is_grey, unit_size, channel_first=True):
+        super().__init__(root, crop_size, downsample, log_para, method, is_grey, unit_size)
 
         self.seq_len = seq_len
         self.channel_first = channel_first
@@ -104,22 +104,27 @@ class BaseTemporalDataset(BaseDataset):
         return imgs, gt
 
     def _val_transform(self, imgs, gts):
-        # Padding
-        w, h = imgs[0].size
-        new_w = (w // self.downsample + 1) * self.downsample if w % self.downsample != 0 else w
-        new_h = (h // self.downsample + 1) * self.downsample if h % self.downsample != 0 else h
+        if self.unit_size > 0:
+            # Padding
+            w, h = img.size
+            new_w = (w // self.unit_size + 1) * self.unit_size if w % self.unit_size != 0 else w
+            new_h = (h // self.unit_size + 1) * self.unit_size if h % self.unit_size != 0 else h
 
-        padding, h, w = get_padding(h, w, new_h, new_w)
-        left, top, _, _ = padding
+            padding, h, w = get_padding(h, w, new_h, new_w)
+            left, top, _, _ = padding
 
-        imgs = [F.to_tensor(img) for img in imgs]
-        imgs = torch.stack(imgs, dim=0)
+            imgs = [F.to_tensor(img) for img in imgs]
+            imgs = torch.stack(imgs, dim=0)
 
-        imgs = F.pad(imgs, padding)
-        gts = [gt + [left, top] for gt in gts]
+            imgs = F.pad(imgs, padding)
+            gts = [(gt + [left, top] if len(gt)>0 else gt) for gt in gts]
 
         # Downsampling
-        gts = [gt / self.downsample for gt in gts]
+        gts = [(gt / self.downsample if len(gt)>0 else gt) for gt in gts]
+
+        # Post-processing
+        img = self.transform(img)
+        gt = torch.from_numpy(gt.copy()).float()
 
         # Post-processing
         imgs = self.transform(imgs)
