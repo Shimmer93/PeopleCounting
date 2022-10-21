@@ -18,7 +18,7 @@ trainer:
     class_path: pytorch_lightning.loggers.TensorBoardLogger
     init_args:
       save_dir: 'logs'
-      version: vidcrowd_csrnet
+      version: vidcrowd_csrnet_new
   benchmark: True
   accelerator: auto
   devices: auto
@@ -36,7 +36,7 @@ model:
     loss_name: 'MSE'
     dataset_name: 'Density'
     log_para: 100
-    patch_size: 1400
+    patch_size: 1440
     model:
       load_weights: false
     loss:

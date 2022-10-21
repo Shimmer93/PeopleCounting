@@ -18,7 +18,7 @@ trainer:
     class_path: pytorch_lightning.loggers.TensorBoardLogger
     init_args:
       save_dir: 'logs'
-      version: vidcrowd_mcnn
+      version: vidcrowd_bl
   benchmark: True
   accelerator: auto
   devices: auto
@@ -27,24 +27,32 @@ trainer:
   max_epochs: 100
 model:
   hparams:
-    batch_size_train: 64
+    batch_size_train: 16
     batch_size_val: 1
     num_workers: 16
     lr: 0.001
     weight_decay: 1.0e-5
-    model_name: 'MCNN'
-    loss_name: 'MSE'
-    dataset_name: 'Density'
-    log_para: 1000
+    model_name: 'BL'
+    loss_name: 'Bayesian'
+    dataset_name: 'Bayesian'
+    log_para: 1
     patch_size: 1400
     model:
-      load_weights: false
+      pretrained: false
     loss:
-      reduction: 'mean'
+      device: 'cuda'
+      use_background: true
+    post_prob:
+      device: 'cuda'
+      sigma: 8.0
+      c_size: 512
+      stride: 8
+      background_ratio: 0.15
+      use_background: True
     dataset:
       root: '/mnt/home/zpengac/USERDIR/Crowd_counting/datasets/vidcrowd'
       crop_size: 512
-      downsample: 4
+      downsample: 8
       log_para: 1
       is_grey: False
       unit_size: 0

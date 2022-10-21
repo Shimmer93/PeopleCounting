@@ -172,30 +172,22 @@ class Trainer(pl.LightningModule):
             
             for patch in img_patches:
                 pred = self.forward(patch)
-                if len(img.shape) == 4:
-                    pred_count += torch.sum(pred).item()
-                else:
-                    pred_count += torch.sum(pred, dim=(0,1,3,4)).cpu().numpy()
+                if self.hparams.loss_name in ['LSTN', 'MLSTN', 'TAN']:
+                    pred, _ = pred
+                pred_count += torch.sum(pred, dim=(0,1,3,4)).cpu().numpy()
 
         else:
             pred = self.forward(img)
-            if len(img.shape) == 4:
-                pred_count = torch.sum(pred).item()
-            else:
-                pred_count = torch.sum(pred, dim=(0,1,3,4)).cpu().numpy()
+            if self.hparams.loss_name in ['LSTN', 'MLSTN', 'TAN']:
+                pred, _ = pred
+            pred_count = torch.sum(pred, dim=(0,1,3,4)).cpu().numpy()
 
-        if len(img.shape) == 4:
-            gt_count = gt.shape[1]
-        else:
-            gt_count = np.array([pts.shape[0] for i, pts in enumerate(gt[0]) if i%4==3])
+        gt_count = np.array([pts.shape[0] for i, pts in enumerate(gt[0])])
 
         mae = np.abs(pred_count - gt_count)
         mse = (pred_count - gt_count) ** 2
 
-        if len(img.shape) == 4:
-            self.log_dict({'val/MSE': mse, 'val/MAE': mae})
-        else:
-            self.log_dict({'val/MSE': np.average(mse), 'val/MAE': np.average(mae)})
+        self.log_dict({'val/MSE': np.average(mse), 'val/MAE': np.average(mae)})
 
     def test_step(self, batch, batch_idx):
         img, gt = batch

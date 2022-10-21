@@ -320,13 +320,13 @@ def run_fdst(origin_dir, save_dir, min_size, max_size):
 
 def run_vidcrowd(origin_dir, save_dir, min_size, max_size):
     for phase in ['train', 'test']:
-        sub_dir = os.path.join(origin_dir, f'VidCrowd_annotation_{phase}', 'annotation')
-        gt_list = glob(os.path.join(sub_dir, 's*', '*.mat'))
+        sub_dir = os.path.join(origin_dir, f'VidCrowd_{phase}_ann_newsplit')
+        gt_list = glob(os.path.join(sub_dir, '*.mat'))
         if phase == 'train':
-            val_video_list = ['s2', 's7', 's12', 's17']
+            val_video_list = ['10', '12', '13', '16']
             val_gt_list = []
             for val_video in val_video_list:
-                val_gt_list += glob(os.path.join(sub_dir, val_video, '*.mat'))
+                val_gt_list += glob(os.path.join(sub_dir, val_video+'_*.mat'))
             train_gt_list = list(set(gt_list) - set(val_gt_list))
             sub_phase_list = ['train', 'val']
             for sub_phase, sub_gt_list in zip(sub_phase_list, [train_gt_list, val_gt_list]):

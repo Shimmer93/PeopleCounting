@@ -253,7 +253,7 @@ class BaseConv(nn.Module):
         return input
 
 if __name__ == '__main__':
-    model = Model()
+    model = MSFANet()
     model.eval()
     input = torch.randn(1, 3, 512, 512)
     output = model(input)

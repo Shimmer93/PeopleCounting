@@ -83,14 +83,25 @@ class Trainer(pl.LightningModule):
             imgs, gts, targs, st_sizes = batch
             preds = self.forward(imgs)
             prob_list = self.post_prob(gts, st_sizes)
-            loss = self.loss(prob_list, targs, preds)
+            if self.hparams.model_name == 'MAN':
+                outputs, features = preds
+                loss = self.loss(prob_list, targs, outputs)
+                loss_c = 0
+                for feature in features:
+                    mean_feature = torch.mean(feature, dim=0)
+                    mean_sum = torch.sum(mean_feature**2)**0.5
+                    cosine = 1 - torch.sum(feature*mean_feature, dim=1) / (mean_sum * torch.sum(feature**2, dim=1)**0.5 + 1e-5)
+                    loss_c += torch.sum(cosine)
+                loss += loss_c
+            else:
+                loss = self.loss(prob_list, targs, preds)
 
         elif self.hparams.dataset_name == 'Binary':
             imgs, gts, bmaps = batch
             preds = self.forward(imgs)
             preds_sum = preds.view([len(imgs), -1]).sum(1).unsqueeze(1).unsqueeze(2).unsqueeze(3)
             preds_normed = preds / (preds_sum + 1e-6)
-            gd_count = torch.from_numpy(np.array([len(p) for p in gts], dtype=np.float32)).float()
+            gd_count = torch.from_numpy(np.array([len(p) for p in gts], dtype=np.float32)).float().cuda()
 
             ot_loss, wd, ot_obj_value = self.loss(preds_normed, preds, gts)
             ot_loss = ot_loss * self.hparams.wot
@@ -105,8 +116,9 @@ class Trainer(pl.LightningModule):
 
         elif self.hparams.dataset_name == 'Density':
             imgs, gts, dmaps = batch
-            preds = self.forward(imgs)
-            loss = self.loss(preds * self.hparams.log_para, dmaps * self.hparams.log_para)
+            with torch.cuda.amp.autocast():
+                preds = self.forward(imgs)
+                loss = self.loss(preds, dmaps * self.hparams.log_para)
         
         return loss
 
@@ -140,11 +152,11 @@ class Trainer(pl.LightningModule):
             
             for patch in img_patches:
                 pred = self.forward(patch)
-                pred_count += torch.sum(pred).item()
+                pred_count += torch.sum(pred).item() / self.hparams.log_para
 
         else:
             pred = self.forward(img)
-            pred_count = torch.sum(pred).item()
+            pred_count = torch.sum(pred).item() / self.hparams.log_para
             
         gt_count = gt.shape[1]
 
@@ -183,11 +195,11 @@ class Trainer(pl.LightningModule):
             
             for patch in img_patches:
                 pred = self.forward(patch)
-                pred_count += torch.sum(pred).item()
+                pred_count += torch.sum(pred).item() / self.hparams.log_para
 
         else:
             pred = self.forward(img)
-            pred_count = torch.sum(pred).item()
+            pred_count = torch.sum(pred).item() / self.hparams.log_para
             
         gt_count = gt.shape[1]
 
@@ -198,7 +210,7 @@ class Trainer(pl.LightningModule):
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.model.parameters(), lr=self.hparams.lr, weight_decay=self.hparams.weight_decay)
-        # scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=20, min_lr=1e-6, verbose=True)
+        # scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.1, patience=10, min_lr=1e-7, verbose=True)
         scheduler = torch.optim.lr_scheduler.OneCycleLR(
             optimizer, max_lr=self.hparams.lr, total_steps=self.trainer.estimated_stepping_batches
         )

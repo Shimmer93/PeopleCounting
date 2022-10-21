@@ -57,7 +57,7 @@ class BinaryMapDataset(BaseDataset):
         assert len(gt) >= 0
 
         bmap = self._gen_discrete_map(h, w, gt)
-        bmap = torch.from_numpy(bmap)
+        bmap = torch.from_numpy(bmap).unsqueeze(0)
 
         # Grey Scale
         if random.random() > 0.88:
@@ -72,7 +72,8 @@ class BinaryMapDataset(BaseDataset):
             h = new_h
             img = img.resize((w, h))
             bmap = F.resize(bmap, (h, w))
-            gt = gt * factor
+            if len(gt) > 0:
+                gt = gt * factor
         
         # Padding
         st_size = 1.0 * min(w, h)
@@ -83,7 +84,8 @@ class BinaryMapDataset(BaseDataset):
 
             img = F.pad(img, padding)
             bmap = F.pad(bmap, padding)
-            gt = gt + [left, top]
+            if len(gt) > 0:
+                gt = gt + [left, top]
 
         # Cropping
         i, j = random_crop(h, w, self.crop_size, self.crop_size)
@@ -106,7 +108,8 @@ class BinaryMapDataset(BaseDataset):
         down_h = h // self.downsample
         bmap = bmap.reshape([down_h, self.downsample, down_w, self.downsample]).sum(dim=(1, 3))
 
-        gt = gt / self.downsample
+        if len(gt) > 0:
+            gt = gt / self.downsample
 
         # Flipping
         if random.random() > 0.5:
@@ -118,6 +121,6 @@ class BinaryMapDataset(BaseDataset):
         # Post-processing
         img = self.transform(img)
         gt = torch.from_numpy(gt.copy()).float()
-        bmap = torch.unsqueeze(bmap, 0).float()
+        bmap = bmap.float()
 
         return img, gt, bmap

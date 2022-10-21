@@ -339,7 +339,6 @@ class CRFVGG(nn.Module):
         self.prelu = nn.PReLU()
         self.relu = nn.ReLU()
 
-
     @torch.cuda.amp.autocast()
     def forward(self, im_data, return_feature=False):
         conv1_2 = ['0', 'relu3']
@@ -365,7 +364,8 @@ class CRFVGG(nn.Module):
         mp_scale1_feature_conv2_na = self.front_end.features.sub_forward(conv1_2[0], conv2_2_na[1])(im_scale1)
         mp_scale2_feature_conv1_na = self.front_end.features.sub_forward(*conv1_2_na)(im_scale2)
 
-        mp_scale1_feature_conv2, mp_scale2_feature_conv1                         = self.passing1([mp_scale1_feature_conv2_na, mp_scale2_feature_conv1_na])
+        mp_scale1_feature_conv2, mp_scale2_feature_conv1 \
+                        = self.passing1([mp_scale1_feature_conv2_na, mp_scale2_feature_conv1_na])
 
 
         aggregation4 = torch.cat([mp_scale1_feature_conv2, mp_scale2_feature_conv1], dim=1)
@@ -375,7 +375,8 @@ class CRFVGG(nn.Module):
         mp_scale3_feature_conv1_na = self.front_end.features.sub_forward(*conv1_2_na)(im_scale3)
 
 
-        mp_scale1_feature_conv3, mp_scale2_feature_conv2, mp_scale3_feature_conv1                         = self.passing2([mp_scale1_feature_conv3_na, mp_scale2_feature_conv2_na, mp_scale3_feature_conv1_na])
+        mp_scale1_feature_conv3, mp_scale2_feature_conv2, mp_scale3_feature_conv1 \
+                        = self.passing2([mp_scale1_feature_conv3_na, mp_scale2_feature_conv2_na, mp_scale3_feature_conv1_na])
         aggregation3 = torch.cat([mp_scale1_feature_conv3, mp_scale2_feature_conv2, mp_scale3_feature_conv1], dim=1)
 
 
@@ -383,13 +384,15 @@ class CRFVGG(nn.Module):
         mp_scale2_feature_conv3_na = self.front_end.features.sub_forward(*conv3_3_na)(mp_scale2_feature_conv2)
         mp_scale3_feature_conv2_na = self.front_end.features.sub_forward(*conv2_2_na)(mp_scale3_feature_conv1)
 
-        mp_scale1_feature_conv4, mp_scale2_feature_conv3, mp_scale3_feature_conv2                         = self.passing3([mp_scale1_feature_conv4_na, mp_scale2_feature_conv3_na, mp_scale3_feature_conv2_na])
+        mp_scale1_feature_conv4, mp_scale2_feature_conv3, mp_scale3_feature_conv2 \
+                        = self.passing3([mp_scale1_feature_conv4_na, mp_scale2_feature_conv3_na, mp_scale3_feature_conv2_na])
         aggregation2 = torch.cat([mp_scale1_feature_conv4, mp_scale2_feature_conv3, mp_scale3_feature_conv2], dim=1)
 
         mp_scale2_feature_conv4_na = self.front_end.features.sub_forward(*conv4_3_na)(mp_scale2_feature_conv3)
         mp_scale3_feature_conv3_na = self.front_end.features.sub_forward(*conv3_3_na)(mp_scale3_feature_conv2)
 
-        mp_scale2_feature_conv4, mp_scale3_feature_conv3                         = self.passing4([mp_scale2_feature_conv4_na, mp_scale3_feature_conv3_na])
+        mp_scale2_feature_conv4, mp_scale3_feature_conv3 \
+                        = self.passing4([mp_scale2_feature_conv4_na, mp_scale3_feature_conv3_na])
         aggregation1 = torch.cat([mp_scale2_feature_conv4, mp_scale3_feature_conv3], dim=1)
 
         mp_scale3_feature_conv4 = self.front_end.features.sub_forward(*conv4_3)(mp_scale3_feature_conv3)
@@ -399,7 +402,7 @@ class CRFVGG(nn.Module):
         dens3 = self.decoder3(aggregation2)
         dens4 = self.decoder4(aggregation3)
         dens5 = self.decoder5(aggregation4)
-        #print(dens1.shape, dens2.shape, dens3.shape, dens4.shape, dens5.shape)
+
         dens1 = self.prelu(dens1)
         dens2 = self.prelu(dens2 + self.passing_weight1(nn.functional.upsample(dens1, scale_factor=2, align_corners=False, mode="bilinear")))
         dens3 = self.prelu(dens3 + self.passing_weight2(nn.functional.upsample(dens2, scale_factor=2, align_corners=False, mode="bilinear")))
@@ -410,7 +413,6 @@ class CRFVGG(nn.Module):
 
 if __name__ == '__main__':
     model = CRFVGG()
-    model.eval()
     input = torch.rand(1, 3, 512, 512)
     output = model(input)
     print(output.shape)
