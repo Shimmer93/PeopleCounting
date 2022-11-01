@@ -24,7 +24,7 @@ trainer:
   devices: auto
   num_sanity_val_steps: 0
   detect_anomaly: True
-  max_epochs: 100
+  max_epochs: 120
 model:
   hparams:
     batch_size_train: 16
@@ -35,7 +35,7 @@ model:
     model_name: 'MAN'
     loss_name: 'Bayesian'
     dataset_name: 'Bayesian'
-    log_para: 1
+    log_para: 100
     patch_size: 1400
     model:
       pretrained: false
@@ -50,7 +50,7 @@ model:
       background_ratio: 0.15
       use_background: True
     dataset:
-      root: '/mnt/home/zpengac/USERDIR/Crowd_counting/datasets/vidcrowd'
+      root: '/mnt/home/zpengac/USERDIR/Crowd_counting/datasets/vidcrowd2'
       crop_size: 512
       downsample: 16
       log_para: 1

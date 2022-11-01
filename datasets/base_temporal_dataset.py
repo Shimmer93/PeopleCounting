@@ -106,7 +106,7 @@ class BaseTemporalDataset(BaseDataset):
     def _val_transform(self, imgs, gts):
         if self.unit_size > 0:
             # Padding
-            w, h = img.size
+            w, h = imgs[0].size
             new_w = (w // self.unit_size + 1) * self.unit_size if w % self.unit_size != 0 else w
             new_h = (h // self.unit_size + 1) * self.unit_size if h % self.unit_size != 0 else h
 
@@ -121,10 +121,6 @@ class BaseTemporalDataset(BaseDataset):
 
         # Downsampling
         gts = [(gt / self.downsample if len(gt)>0 else gt) for gt in gts]
-
-        # Post-processing
-        img = self.transform(img)
-        gt = torch.from_numpy(gt.copy()).float()
 
         # Post-processing
         imgs = self.transform(imgs)

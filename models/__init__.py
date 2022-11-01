@@ -1,6 +1,6 @@
 from models.baselines.CSRNet import CSRNet, CSRResNet, CSRSwinTrans, CSRNext, CSRTwins
 from models.baselines.SACANet import SACANet
-from models.baselines.MAE import vgg19_trans
+from models.baselines.MAN import vgg19_trans
 from models.baselines.BL import BL_VGG
 from models.baselines.CCTrans import alt_gvt_large
 from models.baselines.DSSINet import CRFVGG
@@ -13,6 +13,9 @@ from models.temporal.MLSTN import TemporalMLSTN
 from models.temporal.STDNet import STDNet
 from models.temporal.TAN import TAN
 from models.temporal.ConvLSTM import ConvLSTM
+
+from models.VCFormer.VCFormer import VCFormer
+from models.LTCrowd.LTCrowd import LTCrowd
 
 def Model(name, *args, **kwargs):
     if name == 'CSRNet':
@@ -27,7 +30,7 @@ def Model(name, *args, **kwargs):
         return CSRTwins(*args, **kwargs)
     elif name == 'SACANet':
         return SACANet(*args, **kwargs)
-    elif name == 'MAE':
+    elif name == 'MAN':
         return vgg19_trans(*args, **kwargs)
     elif name == 'VideoSwin':
         return VideoSwinTransformer(*args, **kwargs)
@@ -51,5 +54,9 @@ def Model(name, *args, **kwargs):
         return TAN(*args, **kwargs)
     elif name == 'ConvLSTM':
         return ConvLSTM(*args, **kwargs)
+    elif name == 'VCFormer':
+        return VCFormer(*args, **kwargs)
+    elif name == 'LTCrowd':
+        return LTCrowd(*args, **kwargs)
     else:
         raise NotImplementedError

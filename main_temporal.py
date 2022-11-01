@@ -120,7 +120,10 @@ class Trainer(pl.LightningModule):
         elif self.hparams.dataset_name == 'DensityTemporal':
             imgs, gts, dmaps = batch
             preds = self.forward(imgs)
-            b, t, c, h, w = preds.shape
+            if len(preds.shape) == 5:
+                b, t, c, h, w = preds.shape
+            else:
+                b, c, h, w = preds.shape
             if self.hparams.loss_name == 'LSTN':
                 preds_t0, preds_t1_blocks = preds
                 loss = self.loss(preds_t0, preds_t1_blocks, gts, imgs)
@@ -136,7 +139,7 @@ class Trainer(pl.LightningModule):
                 gt_counts = torch.from_numpy(gt_counts).float()
                 loss = self.loss(pred_maps, pred_counts, dmaps, gt_counts)
             else:
-                loss = self.loss(preds * self.hparams.log_para, dmaps * self.hparams.log_para)
+                loss = self.loss(preds, dmaps * self.hparams.log_para)
         
         return loss
 
@@ -171,16 +174,42 @@ class Trainer(pl.LightningModule):
                     img_patches.append(img[..., h_start:h_end, w_start:w_end])
             
             for patch in img_patches:
-                pred = self.forward(patch)
-                if self.hparams.loss_name in ['LSTN', 'MLSTN', 'TAN']:
-                    pred, _ = pred
-                pred_count += torch.sum(pred, dim=(0,1,3,4)).cpu().numpy()
+                if self.hparams.loss_name == 'LT':
+                    empty_patch = torch.zeros_like(patch[:, 0:1, :, :])
+                    prior_patch = patch[:, 0:1, :, :].clone()
+                    prior_patch = torch.cat([empty_patch, prior_patch], dim=1)
+                    pred_prior = self.forward(prior_patch)
+                    pred_prior = pred_prior[:, 2, :, :]
+                    pred = self.forward(patch)
+                    t0, t1, b = pred[:, 0, :, :], pred[:, 1, :, :], pred[:, 2, :, :]
+                    pred = t0 * pred_prior * t1 + b
+                    pred = torch.stack([pred_prior, pred], dim=1).unsqueeze(1)
+
+                else:
+                    pred = self.forward(patch)
+                    if self.hparams.loss_name in ['LSTN', 'MLSTN', 'TAN']:
+                        pred, _ = pred
+
+                pred_count += torch.sum(pred, dim=(0,1,3,4)).cpu().numpy() / self.hparams.log_para
 
         else:
-            pred = self.forward(img)
-            if self.hparams.loss_name in ['LSTN', 'MLSTN', 'TAN']:
-                pred, _ = pred
-            pred_count = torch.sum(pred, dim=(0,1,3,4)).cpu().numpy()
+            if self.hparams.loss_name == 'LT':
+                empty_patch = torch.zeros_like(patch[:, 0:1, :, :])
+                prior_patch = patch[:, 0:1, :, :].clone()
+                prior_patch = torch.cat([empty_patch, prior_patch], dim=1)
+                pred_prior = self.forward(prior_patch)
+                pred_prior = pred_prior[:, 2, :, :]
+                pred = self.forward(img)
+                t0, t1, b = pred[:, 0, :, :], pred[:, 1, :, :], pred[:, 2, :, :]
+                pred = t0 * pred_prior * t1 + b
+                pred = torch.stack([pred_prior, pred], dim=1).unsqueeze(1)
+
+            else:
+                pred = self.forward(img)
+                if self.hparams.loss_name in ['LSTN', 'MLSTN', 'TAN']:
+                    pred, _ = pred
+
+            pred_count = torch.sum(pred, dim=(0,1,3,4)).cpu().numpy() / self.hparams.log_para
 
         gt_count = np.array([pts.shape[0] for i, pts in enumerate(gt[0])])
 

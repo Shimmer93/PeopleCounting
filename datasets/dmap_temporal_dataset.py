@@ -11,11 +11,12 @@ sys.path.append('/mnt/home/zpengac/USERDIR/Crowd_counting/PeopleCounting')
 from datasets.base_temporal_dataset import BaseTemporalDataset
 from utils.data import random_crop, cal_inner_area, get_padding
 
-class BayesianTemporalDataset(BaseTemporalDataset):
+class DensityTemporalDataset(BaseTemporalDataset):
 
-    def __init__(self, root, crop_size, seq_len, downsample, log_para, method, is_grey):
+    def __init__(self, root, crop_size, seq_len, downsample, log_para, method, is_grey, unit_size, channel_first, empty_ratio=0.0):
         assert crop_size % downsample == 0
-        super().__init__(root, crop_size, seq_len, downsample, log_para, method, is_grey)
+        super().__init__(root, crop_size, seq_len, downsample, log_para, method, is_grey, unit_size, channel_first)
+        self.empty_ratio = empty_ratio
 
     def __getitem__(self, index):
         img_fn = self.img_fns[index]
@@ -28,6 +29,7 @@ class BayesianTemporalDataset(BaseTemporalDataset):
         basenames = [os.path.basename(img_fn).replace('.jpg', '') for img_fn in img_fns]
         dmap_fns = [gt_fn.replace(basename, basename + '_dmap') for gt_fn, basename in zip(gt_fns, basenames)]
         dmaps = [np.load(fn) for fn in dmap_fns]
+        dmaps = np.stack(dmaps, axis=0)
 
         if self.method == 'train':
             return tuple(self._train_transform(imgs, gts, dmaps))
@@ -37,6 +39,8 @@ class BayesianTemporalDataset(BaseTemporalDataset):
 
     def _train_transform(self, imgs, gts, dmaps):
         w, h = imgs[0].size
+
+        dmaps = torch.from_numpy(dmaps).unsqueeze(1)
 
         # Grey Scale
         if random.random() > 0.88:
@@ -50,27 +54,37 @@ class BayesianTemporalDataset(BaseTemporalDataset):
             w = new_w
             h = new_h
             imgs = [img.resize((w, h)) for img in imgs]
+            dmaps = F.resize(dmaps, (h, w))
             gts = [gt * factor for gt in gts]
 
         imgs = [F.to_tensor(img) for img in imgs]
         imgs = torch.stack(imgs, dim=0)
-        
-        # Padding
-        st_size = 1.0 * min(w, h)
-        if st_size < self.crop_size:
-            st_size = self.crop_size
-            padding, h, w = get_padding(h, w, self.crop_size, self.crop_size)
-            left, top, _, _ = padding
 
-            imgs = F.pad(imgs, padding)
-            gts = [(gt + [left, top] if len(gt)>0 else gt) for gt in gts]
+        # Making Empty
+        if random.random() < self.empty_ratio:
+            imgs[0] = torch.zeros_like(imgs[0])
+            gts[0] = np.empty([0, 2])
+            dmaps[0] = torch.zeros_like(dmaps[0])
+
+        # Padding
+        # st_size = 1.0 * min(w, h)
+        # if st_size < self.crop_size:
+        #     st_size = self.crop_size
+        #     padding, h, w = get_padding(h, w, self.crop_size, self.crop_size)
+        #     left, top, _, _ = padding
+
+        #     imgs = F.pad(imgs, padding)
+        #     dmaps = F.pad(dmaps, padding)
+        #     gts = [(gt + [left, top] if len(gt)>0 else gt) for gt in gts]
 
         # Cropping
         i, j = random_crop(h, w, self.crop_size, self.crop_size)
         h, w = self.crop_size, self.crop_size
-        imgs = F.crop(imgs, i, j, h, w)
-        h, w = self.crop_size, self.crop_size
-        dmap = F.crop(dmap, i, j, h, w)
+        imgs_dmaps = torch.cat([imgs, dmaps], dim=1)
+        imgs_dmaps = F.crop(imgs_dmaps, i, j, h, w)
+        imgs = imgs_dmaps[:, :3, :, :]
+        dmaps = imgs_dmaps[:, 3:, :, :]
+        assert dmaps.shape[-1] == dmaps.shape[-2], f'dmaps.shape: {dmaps.shape}, imgs.shape: {imgs.shape}'
         h, w = self.crop_size, self.crop_size
 
         for i, gt in enumerate(gts):
@@ -83,11 +97,15 @@ class BayesianTemporalDataset(BaseTemporalDataset):
                 gts[i] = np.empty([0, 2])
 
         # Downsampling
+        down_w = w // self.downsample
+        down_h = h // self.downsample
+        dmaps = dmaps.reshape([dmaps.shape[0], 1, down_h, self.downsample, down_w, self.downsample]).sum(dim=(3, 5))
         gts = [(gt / self.downsample if len(gt)>0 else gt) for gt in gts]
 
         # Flipping
         if random.random() > 0.5:
             imgs = F.hflip(imgs)
+            dmaps = F.hflip(dmaps)
         for i, gt in enumerate(gts):
             if len(gt) > 0:
                 gts[i][:, 0] = w - gt[:, 0]
@@ -102,7 +120,7 @@ class BayesianTemporalDataset(BaseTemporalDataset):
         return imgs, gts, dmaps
 
 if __name__ == '__main__':
-    dataset = BayesianTemporalDataset('/mnt/home/zpengac/USERDIR/Crowd_counting/datasets/fdst', 512, 5, 1, True, 'val', False)
+    dataset = DensityTemporalDataset('/mnt/home/zpengac/USERDIR/Crowd_counting/datasets/fdst', 512, 5, 1, True, 'val', False)
     # print(len(dataset))
     # imgs, gts, targs, st_size = dataset[0]
     # print(imgs.shape, len(gts), len(targs), st_size)

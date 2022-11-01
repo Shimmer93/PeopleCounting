@@ -274,7 +274,11 @@ class STDNet(nn.Module):
         return x
         
 if __name__ == '__main__':
+    def count_parameters(model):
+        return sum(p.numel() for p in model.parameters() if p.requires_grad) / 1e6
+
     model = STDNet((256, 256), 3, False)
+    print('Number of parameters: %.3fM' % count_parameters(model))
     x = torch.randn(2, 8, 3, 512, 512)
     y = model(x)
     print(y.size())

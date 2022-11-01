@@ -14,34 +14,42 @@ trainer:
         save_on_train_epoch_end: False
         save_weights_only: True
         mode: min
+  logger:
+    class_path: pytorch_lightning.loggers.TensorBoardLogger
+    init_args:
+      save_dir: 'logs'
+      version: vidcrowd_ltcrowd
   benchmark: True
   accelerator: auto
   devices: auto
   num_sanity_val_steps: 0
   detect_anomaly: True
-  max_epochs: 300
+  max_epochs: 120
 model:
   hparams:
-    batch_size_train: 32
+    batch_size_train: 4
     batch_size_val: 1
-    num_workers: 4
-    lr: 0.0001
-    train_split: 'data/UCF_CC_50/train.txt'
-    val_split: 'data/UCF_CC_50/val.txt'
-    test_split: 'data/UCF_CC_50/test.txt'
-    model_name: 'CSRNet'
-    loss_name: 'MSE'
-    dataset_name: 'Density'
-    log_para: 1
+    num_workers: 16
+    lr: 0.001
+    weight_decay: 1.0e-4
+    model_name: 'LTCrowd'
+    loss_name: 'LT'
+    dataset_name: 'DensityTemporal'
+    log_para: 100
+    patch_size: 224
     model:
-      load_weights: false
+      pretrained: false
+      blur: false
     loss:
-      reduction: 'mean'
+      type: 'MSE'
+      lamda: 0.001
     dataset:
-      dname: 'UCF_CC_50'
-      root: '/mnt/home/zpengac/USERDIR/Crowd_counting/datasets/UCF_CC_50'
-      dmap_path: '/mnt/home/zpengac/USERDIR/Crowd_counting/datasets/UCF_CC_50/dmaps'
-      crop_size: 328
-      downsample: 8
+      root: '/mnt/home/zpengac/USERDIR/Crowd_counting/datasets/vidcrowd2'
+      crop_size: 224
+      downsample: 4
+      seq_len: 2
       log_para: 1
-  
+      is_grey: False
+      unit_size: 224
+      channel_first: false
+      empty_ratio: 0.2

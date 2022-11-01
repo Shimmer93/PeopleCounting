@@ -14,38 +14,40 @@ trainer:
         save_on_train_epoch_end: False
         save_weights_only: True
         mode: min
+  logger:
+    class_path: pytorch_lightning.loggers.TensorBoardLogger
+    init_args:
+      save_dir: 'logs'
+      version: vidcrowd_vcformer
   benchmark: True
   accelerator: auto
   devices: auto
   num_sanity_val_steps: 0
   detect_anomaly: True
-  max_epochs: 300
+  max_epochs: 100
 model:
   hparams:
-    batch_size_train: 32
+    batch_size_train: 4
     batch_size_val: 1
-    num_workers: 4
-    lr: 0.0001
-    train_split: 'data/SmartCity/train.txt'
-    val_split: 'data/SmartCity/val.txt'
-    test_split: 'data/SmartCity/test.txt'
-    model_name: 'CSRNet'
-    loss_name: 'OT'
-    dataset_name: 'Binary'
-    wot: 0.1
-    wtv: 0.01
+    num_workers: 16
+    lr: 0.001
+    weight_decay: 1.0e-4
+    model_name: 'VCFormer'
+    loss_name: 'MSE'
+    dataset_name: 'DensityTemporal'
+    log_para: 100
+    patch_size: 512
     model:
-      load_weights: false
+      image_size: 512
+      frames: 4
     loss:
-      c_size: 512
-      stride: 8
-      norm_cood: 0
-      num_of_iter_in_ot: 100
-      reg: 10.0
+      reduction: 'mean'
     dataset:
-      dname: 'SmartCity'
-      root: '/mnt/home/zpengac/USERDIR/Crowd_counting/datasets/SmartCity'
+      root: '/mnt/home/zpengac/USERDIR/Crowd_counting/datasets/vidcrowd2'
       crop_size: 512
-      downsample: 8
+      downsample: 16
+      seq_len: 4
       log_para: 1
-  
+      is_grey: False
+      unit_size: 512
+      channel_first: true

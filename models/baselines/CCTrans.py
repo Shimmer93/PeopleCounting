@@ -551,7 +551,7 @@ def alt_gvt_large(pretrained=False, **kwargs):
     model.default_cfg = _cfg()
     if pretrained:
         '''download from https://github.com/Meituan-AutoML/Twins/alt_gvt_large.pth'''
-        checkpoint = torch.load('/train_folder/head_detection/CCTrans/model_weights/alt_gvt_large.pth') # todo pass path as argument
+        checkpoint = torch.load('/mnt/home/zpengac/USERDIR/Crowd_counting/PeopleCounting/data/alt_gvt_large.pth') # todo pass path as argument
         model.load_state_dict(checkpoint, strict=False)
         print("load transformer pretrained")
     return model

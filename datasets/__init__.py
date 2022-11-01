@@ -3,6 +3,7 @@ from datasets.binary_dataset import BinaryMapDataset
 from datasets.dmap_dataset import DensityMapDataset
 
 from datasets.bayesian_temporal_dataset import BayesianTemporalDataset
+from datasets.dmap_temporal_dataset import DensityTemporalDataset
 
 def Dataset(name, *args, **kwargs):
     if name == 'Bayesian':
@@ -13,5 +14,7 @@ def Dataset(name, *args, **kwargs):
         return DensityMapDataset(*args, **kwargs)
     elif name == 'BayesianTemporal':
         return BayesianTemporalDataset(*args, **kwargs)
+    elif name == 'DensityTemporal':
+        return DensityTemporalDataset(*args, **kwargs)
     else:
         raise NotImplementedError

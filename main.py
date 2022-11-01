@@ -56,11 +56,14 @@ class Trainer(pl.LightningModule):
             self.tv_loss = nn.L1Loss(reduction='none')
             self.count_loss = nn.L1Loss()
 
+    def train_collate_fn(self, batch):
+        return train_collate(batch, self.hparams.dataset_name)
+
     def train_dataloader(self):
         return DataLoader(self.train_dataset, 
             batch_size=self.hparams.batch_size_train, 
             num_workers=self.hparams.num_workers,
-            collate_fn=(lambda batch: train_collate(batch, self.hparams.dataset_name)),
+            collate_fn=self.train_collate_fn,
             pin_memory=True, shuffle=True, drop_last=True)
 
     def val_dataloader(self):
@@ -152,10 +155,14 @@ class Trainer(pl.LightningModule):
             
             for patch in img_patches:
                 pred = self.forward(patch)
+                if self.hparams.model_name == 'MAN':
+                    pred, _ = pred
                 pred_count += torch.sum(pred).item() / self.hparams.log_para
 
         else:
             pred = self.forward(img)
+            if self.hparams.model_name == 'MAN':
+                pred, _ = pred
             pred_count = torch.sum(pred).item() / self.hparams.log_para
             
         gt_count = gt.shape[1]
@@ -205,8 +212,9 @@ class Trainer(pl.LightningModule):
 
         mae = np.abs(pred_count - gt_count)
         mse = (pred_count - gt_count) ** 2
+        nae = mae / gt_count
 
-        self.log_dict({'test/MSE': mse, 'test/MAE': mae})
+        self.log_dict({'test/MSE': mse, 'test/MAE': mae, 'test/NAE': nae})
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.model.parameters(), lr=self.hparams.lr, weight_decay=self.hparams.weight_decay)
@@ -215,7 +223,7 @@ class Trainer(pl.LightningModule):
             optimizer, max_lr=self.hparams.lr, total_steps=self.trainer.estimated_stepping_batches
         )
         return {'optimizer': optimizer, 'lr_scheduler': scheduler}
-        #return {'optimizer': optimizer}
+        # return {'optimizer': optimizer}
 
 if __name__ == '__main__':
     cli = LightningCLI(Trainer, save_config_overwrite=True)

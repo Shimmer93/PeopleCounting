@@ -141,12 +141,8 @@ def generate_data_vidcrowd(im_path, mat_path):
     points = loadmat(mat_path)['annotation'].astype(np.float32)
     idx_mask = (points[:, 0] >= 0) * (points[:, 0] <= im_w) * (points[:, 1] >= 0) * (points[:, 1] <= im_h)
     points = points[idx_mask]
-    im_h, im_w, rr = cal_new_size(im_h, im_w, min_size, max_size)
-    im = np.array(im)
-    if rr != 1.0:
-        im = cv2.resize(np.array(im), (im_w, im_h), cv2.INTER_CUBIC)
-        points = points * rr
-    return Image.fromarray(im), points
+    
+    return im, points
 
 def run_jhu(origin_dir, save_dir, min_size, max_size):
     for phase in ['train', 'val', 'test']:
