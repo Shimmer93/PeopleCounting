@@ -18,7 +18,7 @@ trainer:
     class_path: pytorch_lightning.loggers.TensorBoardLogger
     init_args:
       save_dir: 'logs'
-      version: vidcrowd_orig_dssinet
+      version: vidcrowd_dssinet2
   benchmark: True
   accelerator: auto
   devices: auto
@@ -27,11 +27,11 @@ trainer:
   max_epochs: 120
 model:
   hparams:
-    batch_size_train: 2
+    batch_size_train: 8
     batch_size_val: 1
     num_workers: 16
     lr: 0.001
-    weight_decay: 1.0e-5
+    weight_decay: 1.0e-4
     model_name: 'DSSINet'
     loss_name: 'MSE'
     dataset_name: 'Density'
@@ -42,8 +42,8 @@ model:
     loss:
       reduction: 'mean'
     dataset:
-      root: '/mnt/home/zpengac/USERDIR/Crowd_counting/datasets/vidcrowd_orig'
-      crop_size: 784
+      root: '/mnt/home/zpengac/USERDIR/Crowd_counting/datasets/vidcrowd2'
+      crop_size: 512
       downsample: 1
       log_para: 1
       is_grey: False

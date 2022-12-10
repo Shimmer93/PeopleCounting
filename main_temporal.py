@@ -92,11 +92,14 @@ class Trainer(pl.LightningModule):
         if self.hparams.dataset_name == 'BayesianTemporal':
             imgs, gts, targs, st_sizes = batch
             preds = self.forward(imgs)
-            b, t, c, h, w = preds.shape
-            preds = preds.view(b*t, c, h, w)
+            b, c, t, h, w = preds.shape
+            preds = preds.transpose(1, 2).reshape(b*t, c, h, w)
             gts = list(chain.from_iterable(gts))
             targs = list(chain.from_iterable(targs))
+            # print(f'len gts: {len(gts)}')
+            # print(f'len targs: {len(targs)}')
             prob_list = self.post_prob(gts, st_sizes)
+            # print(f'len prob_list: {len(prob_list)}')
             loss = self.loss(prob_list, targs, preds)
 
         elif self.hparams.dataset_name == 'Binary':
@@ -120,17 +123,20 @@ class Trainer(pl.LightningModule):
         elif self.hparams.dataset_name == 'DensityTemporal':
             imgs, gts, dmaps = batch
             preds = self.forward(imgs)
-            if len(preds.shape) == 5:
-                b, t, c, h, w = preds.shape
-            else:
-                b, c, h, w = preds.shape
             if self.hparams.loss_name == 'LSTN':
                 preds_t0, preds_t1_blocks = preds
-                loss = self.loss(preds_t0, preds_t1_blocks, gts, imgs)
+                loss = self.loss(preds_t0, preds_t1_blocks, dmaps.squeeze(), imgs)
             elif self.hparams.loss_name == 'MLSTN':
                 preds_t012, preds_t3 = preds
                 loss = self.loss(preds_t012, preds_t3, gts, imgs)
             elif self.hparams.loss_name == 'TAN':
+                if len(preds.shape) == 5:
+                    if self.hparams.dataset.channel_first:
+                        b, c, t, h, w = preds.shape
+                    else:
+                        b, t, c, h, w = preds.shape
+                else:
+                    b, t, h, w = preds.shape
                 pred_maps, pred_counts = preds
                 gt_counts = np.zeros((b, t))
                 for i in range(b):
@@ -157,18 +163,16 @@ class Trainer(pl.LightningModule):
             pred_count = 0
             h_stride = int(np.ceil(1.0 * h / patch_size))
             w_stride = int(np.ceil(1.0 * w / patch_size))
-            h_step = h // h_stride
-            w_step = w // w_stride
             for i in range(h_stride):
                 for j in range(w_stride):
-                    h_start = i * h_step
+                    h_start = i * patch_size
                     if i != h_stride - 1:
-                        h_end = (i + 1) * h_step
+                        h_end = (i + 1) * patch_size
                     else:
                         h_end = h
-                    w_start = j * w_step
+                    w_start = j * patch_size
                     if j != w_stride - 1:
-                        w_end = (j + 1) * w_step
+                        w_end = (j + 1) * patch_size
                     else:
                         w_end = w
                     img_patches.append(img[..., h_start:h_end, w_start:w_end])
@@ -190,7 +194,9 @@ class Trainer(pl.LightningModule):
                     if self.hparams.loss_name in ['LSTN', 'MLSTN', 'TAN']:
                         pred, _ = pred
 
-                pred_count += torch.sum(pred, dim=(0,1,3,4)).cpu().numpy() / self.hparams.log_para
+                # if self.hparams.dataset.channel_first:
+                #     pred = pred.transpose(1, 2)
+                pred_count += torch.sum(pred, dim=(0,2,3,4)).cpu().numpy() / self.hparams.log_para
 
         else:
             if self.hparams.loss_name == 'LT':
@@ -209,7 +215,9 @@ class Trainer(pl.LightningModule):
                 if self.hparams.loss_name in ['LSTN', 'MLSTN', 'TAN']:
                     pred, _ = pred
 
-            pred_count = torch.sum(pred, dim=(0,1,3,4)).cpu().numpy() / self.hparams.log_para
+            # if self.hparams.dataset.channel_first:
+            #     pred = pred.transpose(1, 2)
+            pred_count = torch.sum(pred, dim=(0,2,3,4)).cpu().numpy() / self.hparams.log_para
 
         gt_count = np.array([pts.shape[0] for i, pts in enumerate(gt[0])])
 
@@ -232,18 +240,16 @@ class Trainer(pl.LightningModule):
             pred_count = 0
             h_stride = int(np.ceil(1.0 * h / patch_size))
             w_stride = int(np.ceil(1.0 * w / patch_size))
-            h_step = h // h_stride
-            w_step = w // w_stride
             for i in range(h_stride):
                 for j in range(w_stride):
-                    h_start = i * h_step
+                    h_start = i * patch_size
                     if i != h_stride - 1:
-                        h_end = (i + 1) * h_step
+                        h_end = (i + 1) * patch_size
                     else:
                         h_end = h
-                    w_start = j * w_step
+                    w_start = j * patch_size
                     if j != w_stride - 1:
-                        w_end = (j + 1) * w_step
+                        w_end = (j + 1) * patch_size
                     else:
                         w_end = w
                     img_patches.append(img[..., h_start:h_end, w_start:w_end])

@@ -5,7 +5,7 @@ def lstn_loss(preds_t0, preds_t1_blocks, gts, imgs, lamda=0.001, beta=30):
     '''
     Args:
         preds_t0: Tensor with shape (B x T x 1 x H x W)
-        preds_t1_blocks: List of tensors with shape (B x T x 1 x H/h x W/w)
+        preds_t1_blocks: List of tensors with shape (T x 1 x H/h x W/w x B)
         gts: Tensor with shape (B x T x H x W)
         imgs: Tensor with shape (B x T x 3 x H x W)
         lamda: Float
@@ -15,10 +15,10 @@ def lstn_loss(preds_t0, preds_t1_blocks, gts, imgs, lamda=0.001, beta=30):
     seq_length = preds_t0.shape[1]
     result_reg_loss = torch.zeros(batch_size).cuda()
     result_lst_loss = torch.zeros(batch_size).cuda()
-    
+
     for i in range(seq_length):
         pred_t0 = preds_t0[:,i,...].squeeze()
-        pred_t1_blocks = [preds[:,i,...].squeeze() for preds in preds_t1_blocks]
+        pred_t1_blocks = [preds.permute(4,0,1,2,3)[:,i,...].squeeze() for preds in preds_t1_blocks]
         gt0 = gts[:,i,...]
         gt1 = None if i == seq_length -1 else gts[:,i+1,...]
         img0 = imgs[:,i,...]

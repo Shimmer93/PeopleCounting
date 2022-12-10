@@ -18,33 +18,37 @@ trainer:
     class_path: pytorch_lightning.loggers.TensorBoardLogger
     init_args:
       save_dir: 'logs'
-      version: vidcrowd_mcnn6
+      version: sta_diffusion
   benchmark: True
   accelerator: auto
   devices: auto
   num_sanity_val_steps: 0
   detect_anomaly: True
   max_epochs: 120
+  gradient_clip_algorithm: 'value'
+  gradient_clip_val: 1000
+  check_val_every_n_epoch: 5
 model:
   hparams:
     batch_size_train: 16
     batch_size_val: 1
     num_workers: 16
-    lr: 1e-4
+    lr: 0.001
     weight_decay: 1.0e-4
-    model_name: 'MCNN'
+    model_name: 'DiffusionCounter'
     loss_name: 'MSE'
     dataset_name: 'Density'
     log_para: 100
-    patch_size: 1400
+    patch_size: 256
     model:
-      load_weights: false
+      dim: 128
+      den_size: 32
     loss:
       reduction: 'mean'
     dataset:
-      root: '/mnt/home/zpengac/USERDIR/Crowd_counting/datasets/vidcrowd2'
-      crop_size: 512
-      downsample: 4
+      root: '/mnt/home/zpengac/USERDIR/Crowd_counting/datasets/sta'
+      crop_size: 256
+      downsample: 8
       log_para: 1
       is_grey: False
-      unit_size: 0
+      unit_size: 256

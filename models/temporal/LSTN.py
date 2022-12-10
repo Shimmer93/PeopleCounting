@@ -15,7 +15,6 @@ class LSTN(nn.Module):
         self.vgg16 = VGG16()
         self.stn = STN((h_size, w_size))
     
-    @torch.cuda.amp.autocast()
     def forward(self, x):
         """
         :param x: frame t with size (B, 3, 360, 640)
@@ -73,7 +72,6 @@ class STN(nn.Module):
         self.fc_loc[2].weight.data.zero_()
         self.fc_loc[2].bias.data.copy_(torch.tensor([1, 0, 0, 0, 1, 0], dtype=torch.float))
 
-    @torch.cuda.amp.autocast()
     def forward(self, x):
         """
         :param x: block of output from VGG16 at time t with size (B, 1, 90, 80) or (B, 1, 45, 80)
@@ -111,7 +109,6 @@ class VGG16(nn.Module):
                 #self.layers[i].weight.copy_(mod.features[i+1].weight)
                 #self.layers[i].bias.copy_(mod.features[i+1].bias)
 
-    @torch.cuda.amp.autocast()
     def forward(self, x):
         """
         :param x: frame t with size (B, 3, 360, 640)
@@ -157,11 +154,10 @@ def make_layers(cfg, in_channels=3, batch_norm=False, dilation=False):
     return nn.Sequential(*layers)
 
 class TemporalLSTN(nn.Module):
-    def __init__(self, input_size=(360, 640), h_blocks=1, w_blocks=2):
+    def __init__(self, input_h=360, input_w=640, h_blocks=1, w_blocks=2):
         super(TemporalLSTN, self).__init__()
-        self.model = TimeDistributed(LSTN(input_size, h_blocks, w_blocks))
+        self.model = TimeDistributed(LSTN((input_h, input_w), h_blocks, w_blocks))
 
-    @torch.cuda.amp.autocast()
     def forward(self, x):
         """
         :param x: input with size (B, T, 3, 360, 640)
@@ -171,7 +167,7 @@ class TemporalLSTN(nn.Module):
         return x
 
 if __name__ == '__main__':
-    m = TemporalLSTN(input_size=(512,512),h_blocks=2,w_blocks=2)
+    m = TemporalLSTN(input_h=512, input_w=512,h_blocks=2,w_blocks=2)
     x = torch.randn(2, 8, 3, 512, 512)
     y, y2 = m(x)
     print(y.shape)

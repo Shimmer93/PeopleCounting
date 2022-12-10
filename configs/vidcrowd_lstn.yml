@@ -18,7 +18,7 @@ trainer:
     class_path: pytorch_lightning.loggers.TensorBoardLogger
     init_args:
       save_dir: 'logs'
-      version: vidcrowd_mcnn6
+      version: vidcrowd_lstn
   benchmark: True
   accelerator: auto
   devices: auto
@@ -27,24 +27,30 @@ trainer:
   max_epochs: 120
 model:
   hparams:
-    batch_size_train: 16
+    batch_size_train: 4
     batch_size_val: 1
     num_workers: 16
-    lr: 1e-4
+    lr: 0.00001
     weight_decay: 1.0e-4
-    model_name: 'MCNN'
-    loss_name: 'MSE'
-    dataset_name: 'Density'
-    log_para: 100
-    patch_size: 1400
+    model_name: 'LSTN'
+    loss_name: 'LSTN'
+    dataset_name: 'DensityTemporal'
+    log_para: 10000
+    patch_size: 512
     model:
-      load_weights: false
+      input_h: 512
+      input_w: 512
+      h_blocks: 2
+      w_blocks: 2
     loss:
-      reduction: 'mean'
+      lamda: 0.001
+      beta: 30
     dataset:
       root: '/mnt/home/zpengac/USERDIR/Crowd_counting/datasets/vidcrowd2'
       crop_size: 512
       downsample: 4
+      seq_len: 8
       log_para: 1
       is_grey: False
-      unit_size: 0
+      unit_size: 512
+      channel_first: false

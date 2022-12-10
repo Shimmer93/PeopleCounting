@@ -18,29 +18,36 @@ trainer:
     class_path: pytorch_lightning.loggers.TensorBoardLogger
     init_args:
       save_dir: 'logs'
-      version: vidcrowd_cctrans2
+      version: vidcrowd_cctrans
   benchmark: True
   accelerator: auto
   devices: auto
   num_sanity_val_steps: 0
   detect_anomaly: True
-  max_epochs: 1000
+  max_epochs: 120
 model:
   hparams:
     batch_size_train: 4
     batch_size_val: 1
     num_workers: 16
-    lr: 0.001
-    weight_decay: 1.0e-5
+    lr: 1e-4
+    weight_decay: 1.0e-4
     model_name: 'CCTrans'
-    loss_name: 'MSE'
-    dataset_name: 'Density'
+    loss_name: 'OT'
+    dataset_name: 'Binary'
     log_para: 1
     patch_size: 1440
+    wot: 0.1
+    wtv: 0.01
     model:
       pretrained: true
     loss:
-      reduction: 'mean'
+      c_size: 512
+      stride: 8
+      norm_cood: 0
+      num_of_iter_in_ot: 100
+      reg: 10.0
+      device: 'cuda'
     dataset:
       root: '/mnt/home/zpengac/USERDIR/Crowd_counting/datasets/vidcrowd2'
       crop_size: 512

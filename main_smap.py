@@ -6,6 +6,9 @@ from pytorch_lightning.cli import LightningCLI
 from pytorch_lightning.loggers import TensorBoardLogger
 import numpy as np
 
+import warnings
+warnings.filterwarnings('ignore')
+
 from models import Model
 from losses import Loss
 from datasets import Dataset
@@ -13,13 +16,14 @@ from losses.post_prob import Post_Prob
 from utils.misc import AverageMeter
 
 def train_collate(batch, dataset):
-    if dataset == 'Bayesian':
+    if dataset == 'ScaleBayesian':
         transposed_batch = list(zip(*batch))
         images = torch.stack(transposed_batch[0], 0)
         points = transposed_batch[1]  # the number of points is not fixed, keep it as a list of tensor
         targets = transposed_batch[2]
         st_sizes = torch.FloatTensor(transposed_batch[3])
-        return images, points, targets, st_sizes
+        smaps = torch.stack(transposed_batch[4], 0)
+        return images, points, targets, st_sizes, smaps
 
     elif dataset == 'Binary':
         transposed_batch = list(zip(*batch))
@@ -28,15 +32,28 @@ def train_collate(batch, dataset):
         gt_discretes = torch.stack(transposed_batch[2], 0)
         return images, points, gt_discretes
 
-    elif dataset == 'Density':
+    elif dataset == 'Scale':
         transposed_batch = list(zip(*batch))
         images = torch.stack(transposed_batch[0], 0)
         points = transposed_batch[1]  # the number of points is not fixed, keep it as a list of tensor
         dmaps = torch.stack(transposed_batch[2], 0)
-        return images, points, dmaps
+        smaps = torch.stack(transposed_batch[3], 0)
+        return images, points, dmaps, smaps
     
     else:
         raise NotImplementedError
+
+# class JointLoss(nn.Module):
+#     def __init__(self, countLoss):
+#         super().__init__()
+#         self.countLoss = countLoss
+#         self.scaleLoss = nn.L1Loss()
+
+#     def forward(self, countLossInput, pred_smap, gt_smap, beta):
+#         count_l = self.countLoss(*countLossInput)
+#         scale_l = self.scaleLoss(pred_smap, gt_smap)
+#         # print('count loss: {:.4f}, scale loss: {:.4f}'.format(count_l, scale_l))
+#         return count_l + beta * scale_l
 
 class Trainer(pl.LightningModule):
     
@@ -45,14 +62,9 @@ class Trainer(pl.LightningModule):
 
         self.save_hyperparameters(hparams)
         self.model = Model(self.hparams.model_name, **self.hparams.model)
-        # state_dict = torch.load('/mnt/home/zpengac/USERDIR/Crowd_counting/PeopleCounting/logs/lightning_logs/jhu_sasnet/checkpoints/epoch=032_mse=4225443.00_mae=1519.99.ckpt')['state_dict']
-        # from collections import OrderedDict
-        # new_state_dict = OrderedDict()
-        # for k, v in state_dict.items():
-        #     name = k[6:]
-        #     new_state_dict[name] = v
-        # self.model.load_state_dict(new_state_dict)
-        self.loss = Loss(self.hparams.loss_name, **self.hparams.loss)
+        self.countloss = Loss(self.hparams.loss_name, **self.hparams.loss)
+        self.scaleloss = nn.MSELoss()
+        # self.numloss = nn.L1Loss()
         self.train_dataset = Dataset(self.hparams.dataset_name, method='train', **self.hparams.dataset)
         self.val_dataset = Dataset(self.hparams.dataset_name, method='val', **self.hparams.dataset)
         self.test_dataset = Dataset(self.hparams.dataset_name, method='test', **self.hparams.dataset)
@@ -89,22 +101,11 @@ class Trainer(pl.LightningModule):
         return self.model(imgs)
 
     def training_step(self, batch, batch_idx):
-        if self.hparams.dataset_name == 'Bayesian':
-            imgs, gts, targs, st_sizes = batch
-            preds = self.forward(imgs)
+        if self.hparams.dataset_name == 'ScaleBayesian':
+            imgs, gts, targs, st_sizes, smaps = batch
+            preds, pred_smaps = self.forward(imgs)
             prob_list = self.post_prob(gts, st_sizes)
-            if self.hparams.model_name == 'MAN':
-                outputs, features = preds
-                loss = self.loss(prob_list, targs, outputs)
-                loss_c = 0
-                for feature in features:
-                    mean_feature = torch.mean(feature, dim=0)
-                    mean_sum = torch.sum(mean_feature**2)**0.5
-                    cosine = 1 - torch.sum(feature*mean_feature, dim=1) / (mean_sum * torch.sum(feature**2, dim=1)**0.5 + 1e-5)
-                    loss_c += torch.sum(cosine)
-                loss += loss_c
-            else:
-                loss = self.loss(prob_list, targs, preds)
+            loss = self.loss([prob_list, targs, preds], pred_smaps, smaps)
 
         elif self.hparams.dataset_name == 'Binary':
             imgs, gts, bmaps = batch
@@ -124,14 +125,25 @@ class Trainer(pl.LightningModule):
 
             loss = ot_loss + tv_loss + count_loss
 
-        elif self.hparams.dataset_name == 'Density':
-            imgs, gts, dmaps = batch
-            if self.hparams.model_name == 'DiffusionCounter':
-                loss = self.model(imgs, dmaps)
-            else:
-                with torch.cuda.amp.autocast():
-                    preds = self.forward(imgs)
-                    loss = self.loss(preds, dmaps * self.hparams.log_para)
+        elif self.hparams.dataset_name == 'Scale':
+            imgs, gts, dmaps, smaps = batch
+            # e = self.current_epoch
+            beta = 1.0 # np.exp2((60-e)/20)
+            lamda = 1.0
+            
+            with torch.cuda.amp.autocast():
+                pred_dmapss, pred_smaps = self.forward(imgs)
+                lower_smaps = torch.clamp(torch.floor(smaps).to(torch.long), 0, 4)
+                lower_scales = nn.functional.one_hot(lower_smaps, 5).permute(0, 1, 4, 2, 3).squeeze(1).to(torch.float32)
+                pred_dmaps = (pred_dmapss * lower_scales).sum(1, keepdim=True)
+                countloss = self.countloss(pred_dmaps, dmaps)
+                scaleloss = self.scaleloss(pred_smaps, smaps)
+                # pred_nums = pred_dmaps.sum(dim=(1, 2, 3))
+                # gt_nums = dmaps.sum(dim=(1, 2, 3))
+                # ratio = gt_nums / (pred_nums + 1e-6)
+                # numloss = self.numloss(ratio, torch.ones_like(ratio))
+                # print('scale: {:.4f}, count loss: {:.4f}, scale loss: {:.4f}, beta: {:.4f}'.format(pred_smaps.sum(), countloss, scaleloss, beta))
+                loss = countloss + beta * scaleloss # + lamda * numloss
         
         return loss
 
@@ -162,29 +174,28 @@ class Trainer(pl.LightningModule):
                     img_patches.append(img[..., h_start:h_end, w_start:w_end])
             
             for patch in img_patches:
-                if self.hparams.model_name == 'DiffusionCounter':
-                    pred = self.model.sample(patch, 1)
-                else:
-                    pred = self.forward(patch)
-                    if self.hparams.model_name == 'MAN':
-                        pred, _ = pred
+                dmaps, smap = self.forward(patch)
+                lower_smap = torch.clamp(torch.floor(smap).to(torch.long), 0, 4)
+                lower_scale = nn.functional.one_hot(lower_smap, 5).permute(0, 1, 4, 2, 3).squeeze(1).to(torch.float32)
+                pred = (dmaps * lower_scale).sum(1, keepdim=True)
+                    
                 pred_count += torch.sum(pred).item() / self.hparams.log_para
 
         else:
-            if self.hparams.model_name == 'DiffusionCounter':
-                pred = self.model.sample(patch, 1)
-            else:
-                pred = self.forward(img)
-                if self.hparams.model_name == 'MAN':
-                    pred, _ = pred
+            dmaps, smap = self.forward(img)
+            lower_smap = torch.clamp(torch.floor(smap).to(torch.long), 0, 4)
+            lower_scale = nn.functional.one_hot(lower_smap, 5).permute(0, 1, 4, 2, 3).squeeze(1).to(torch.float32)
+            pred = (dmaps * lower_scale).sum(1, keepdim=True)
+
             pred_count = torch.sum(pred).item() / self.hparams.log_para
             
         gt_count = gt.shape[1]
 
         mae = np.abs(pred_count - gt_count)
         mse = (pred_count - gt_count) ** 2
+        nae = mae / gt_count
 
-        self.log_dict({'val/MSE': mse, 'val/MAE': mae})
+        self.log_dict({'val/MSE': mse, 'val/MAE': mae, 'val/NAE': nae})
 
     def test_step(self, batch, batch_idx):
         img, gt = batch
@@ -213,11 +224,19 @@ class Trainer(pl.LightningModule):
                     img_patches.append(img[..., h_start:h_end, w_start:w_end])
             
             for patch in img_patches:
-                pred = self.forward(patch)
+                dmaps, smap = self.forward(patch)
+                lower_smap = torch.clamp(torch.floor(smap).to(torch.long), 0, 4)
+                lower_scale = nn.functional.one_hot(lower_smap, 5).permute(0, 1, 4, 2, 3).squeeze(1).to(torch.float32)
+                pred = (dmaps * lower_scale).sum(1, keepdim=True)
+                    
                 pred_count += torch.sum(pred).item() / self.hparams.log_para
 
         else:
-            pred = self.forward(img)
+            dmaps, smap = self.forward(img)
+            lower_smap = torch.clamp(torch.floor(smap).to(torch.long), 0, 4)
+            lower_scale = nn.functional.one_hot(lower_smap, 5).permute(0, 1, 4, 2, 3).squeeze(1).to(torch.float32)
+            pred = (dmaps * lower_scale).sum(1, keepdim=True)
+
             pred_count = torch.sum(pred).item() / self.hparams.log_para
             
         gt_count = gt.shape[1]

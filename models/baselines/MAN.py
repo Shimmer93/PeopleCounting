@@ -326,18 +326,19 @@ cfg = {
     'E': [64, 64, 'M', 128, 128, 'M', 256, 256, 256, 256, 'M', 512, 512, 512, 512, 'M', 512, 512, 512, 512, 'M']
 }
 
-def vgg19_trans():
+def vgg19_trans(pretrained=True):
     """VGG 19-layer model (configuration "E")
         model pre-trained on ImageNet
     """
     model = VGG_Trans(make_layers(cfg['E']))
-    model.load_state_dict(model_zoo.load_url(model_urls['vgg19']), strict=False)
+    if pretrained:
+        model.load_state_dict(model_zoo.load_url(model_urls['vgg19']), strict=False)
     return model
 
 
 if __name__ == '__main__':
     m = vgg19_trans()
     m.eval()
-    x = torch.randn(2,3,512,512)
-    y = m(x)
+    x = torch.randn(1,3,512,512)
+    y, _ = m(x)
     print(y.shape)

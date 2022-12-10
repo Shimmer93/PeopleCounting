@@ -18,16 +18,16 @@ trainer:
     class_path: pytorch_lightning.loggers.TensorBoardLogger
     init_args:
       save_dir: 'logs'
-      version: vidcrowd_vcformer
+      version: vidcrowd_vcformer5
   benchmark: True
   accelerator: auto
   devices: auto
   num_sanity_val_steps: 0
   detect_anomaly: True
-  max_epochs: 100
+  max_epochs: 120
 model:
   hparams:
-    batch_size_train: 4
+    batch_size_train: 2
     batch_size_val: 1
     num_workers: 16
     lr: 0.001
@@ -35,18 +35,37 @@ model:
     model_name: 'VCFormer'
     loss_name: 'MSE'
     dataset_name: 'DensityTemporal'
+    # loss_name: 'Bayesian'
+    # dataset_name: 'BayesianTemporal'
     log_para: 100
     patch_size: 512
     model:
       image_size: 512
-      frames: 4
+      image_patch_size: 16
+      frames: 8
+      dim: 1024
+      depth: 3
+      heads: 8
+      mlp_dim: 1024
+      dropout: 0.1
+      emb_dropout: 0.1
+    # loss:
+    #   device: 'cuda'
+    #   use_background: true
+    # post_prob:
+    #   device: 'cuda'
+    #   sigma: 8.0
+    #   c_size: 512
+    #   stride: 16
+    #   background_ratio: 0.15
+    #   use_background: True
     loss:
       reduction: 'mean'
     dataset:
       root: '/mnt/home/zpengac/USERDIR/Crowd_counting/datasets/vidcrowd2'
       crop_size: 512
       downsample: 16
-      seq_len: 4
+      seq_len: 8
       log_para: 1
       is_grey: False
       unit_size: 512

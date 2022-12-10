@@ -144,6 +144,15 @@ def generate_data_vidcrowd(im_path, mat_path):
     
     return im, points
 
+def generate_data_worldexpo(im_path, mat_path):
+    im = Image.open(im_path)
+    im_w, im_h = im.size
+    points = loadmat(mat_path)['annotation'].astype(np.float32)
+    idx_mask = (points[:, 0] >= 0) * (points[:, 0] <= im_w) * (points[:, 1] >= 0) * (points[:, 1] <= im_h)
+    points = points[idx_mask]
+    
+    return im, points
+
 def run_jhu(origin_dir, save_dir, min_size, max_size):
     for phase in ['train', 'val', 'test']:
             sub_dir = os.path.join(origin_dir, phase)
@@ -362,7 +371,7 @@ def parse_args():
                         help='minimum image size')
     parser.add_argument('--max-size', default=1024, type=int,
                         help='maximum image size')
-    parser.add_argument('--dataset', default='jhu', type=str, choices=['jhu', 'qnrf', 'smartcity', 'sta', 'cc50', 'fdst', 'vidcrowd'],
+    parser.add_argument('--dataset', default='jhu', type=str, choices=['jhu', 'qnrf', 'smartcity', 'sta', 'cc50', 'fdst', 'vidcrowd', 'worldexpo'],
                         help='dataset name')
     args = parser.parse_args()
     return args

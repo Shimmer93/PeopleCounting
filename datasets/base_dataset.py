@@ -13,7 +13,7 @@ from utils.data import random_crop, get_padding
 
 class BaseDataset(Dataset):
 
-    def __init__(self, root, crop_size, downsample, log_para, method, is_grey, unit_size):
+    def __init__(self, root, crop_size, downsample, log_para, method, is_grey=False, unit_size=0):
         self.root = root
         self.crop_size = crop_size
         self.downsample = downsample
@@ -109,7 +109,7 @@ class BaseDataset(Dataset):
         return img, gt
 
     def _val_transform(self, img, gt):
-        if self.unit_size > 0:
+        if self.unit_size is not None and self.unit_size > 0:
             # Padding
             w, h = img.size
             new_w = (w // self.unit_size + 1) * self.unit_size if w % self.unit_size != 0 else w
@@ -121,6 +121,20 @@ class BaseDataset(Dataset):
             img = F.pad(img, padding)
             if len(gt) > 0:
                 gt = gt + [left, top]
+
+        # # Cropping
+        # i, j = random_crop(h, w, self.crop_size, self.crop_size)
+        # h, w = self.crop_size, self.crop_size
+        # img = F.crop(img, i, j, h, w)
+        # h, w = self.crop_size, self.crop_size
+
+        # if len(gt) > 0:
+        #     gt = gt - [j, i]
+        #     idx_mask = (gt[:, 0] >= 0) * (gt[:, 0] <= w) * \
+        #                (gt[:, 1] >= 0) * (gt[:, 1] <= h)
+        #     gt = gt[idx_mask]
+        # else:
+        #     gt = np.empty([0, 2])
 
         # Downsampling
         gt = gt / self.downsample
