@@ -51,3 +51,55 @@ class Post_Prob(Module):
         return prob_list
 
 
+class Post_Prob_with_Scale(Module):
+    def __init__(self, sigma_coeff, c_size, stride, background_ratio, use_background, device):
+        super(Post_Prob_with_Scale, self).__init__()
+        assert c_size % stride == 0
+
+        self.sigma_coeff = sigma_coeff
+        self.bg_ratio = background_ratio
+        self.device = device
+        # coordinate is same to image space, set to constant since crop size is same
+        self.cood = torch.arange(0, c_size, step=stride,
+                                 dtype=torch.float32, device=device) + stride / 2
+        self.cood.unsqueeze_(0)
+        self.softmax = torch.nn.Softmax(dim=0)
+        self.use_bg = use_background
+
+    def forward(self, points, scales, st_sizes):
+        num_points_per_image = [len(points_per_image) for points_per_image in points]
+        all_points = torch.cat(points, dim=0)
+        all_scales = torch.cat(scales, dim=0)
+
+        if len(all_points) > 0:
+            x = all_points[:, 0].unsqueeze_(1)
+            y = all_points[:, 1].unsqueeze_(1)
+            x_dis = -2 * torch.matmul(x, self.cood) + x * x + self.cood * self.cood
+            y_dis = -2 * torch.matmul(y, self.cood) + y * y + self.cood * self.cood
+            y_dis.unsqueeze_(2)
+            x_dis.unsqueeze_(1)
+            dis = y_dis + x_dis
+            dis = dis.view((dis.size(0), -1))
+
+            dis_list = torch.split(dis, num_points_per_image)
+            scale_list = torch.split(all_scales, num_points_per_image)
+            prob_list = []
+            for dis, scale, st_size in zip(dis_list, scale_list, st_sizes):
+                # print(dis.shape, scale.shape)
+                if len(dis) > 0:
+                    if self.use_bg:
+                        min_dis = torch.clamp(torch.min(dis, dim=0, keepdim=True)[0], min=0.0)
+                        d = st_size * self.bg_ratio
+                        bg_dis = (d - torch.sqrt(min_dis))**2
+                        dis = torch.cat([dis, bg_dis], 0)  # concatenate background distance to the last
+                        scale = torch.cat([scale, torch.ones(1, device=self.device)], 0)
+                    dis = -dis / (2.0 * (self.sigma_coeff * scale.unsqueeze(-1)) ** 2)
+                    prob = self.softmax(dis)
+                else:
+                    prob = None
+                prob_list.append(prob)
+        else:
+            prob_list = []
+            for _ in range(len(points)):
+                prob_list.append(None)
+        return prob_list

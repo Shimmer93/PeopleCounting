@@ -7,9 +7,7 @@ from models.baselines.DSSINet import CRFVGG
 from models.baselines.MSFANet import MSFANet
 from models.baselines.MCNN import MCNN
 from models.baselines.SASNet import SASNet
-from models.baselines.SASNet2 import SASNet2
 
-from models.temporal.swin_transformer import VideoSwinTransformer
 from models.temporal.LSTN import TemporalLSTN
 from models.temporal.MLSTN import TemporalMLSTN
 from models.temporal.STDNet import STDNet
@@ -17,12 +15,15 @@ from models.temporal.TAN import TAN
 from models.temporal.ConvLSTM import ConvLSTM
 
 from models.VCFormer.VCFormer import VCFormer
-from models.LTCrowd.LTCrowd import LTCrowd
 from models.baselines.CSRNet_try import TemporalCSRNet, CSRInvoNet
 
 from models.diffusion.DiffusionCounter import DiffusionCounter
-from models.ScaleCount.ScaleCount2 import CSRScaleNet, SCNet2, SCNet3
 from models.ScaleCount.ScaleDensityCounter import SDCNet
+from models.ScaleCount.SwinSDCNet import SwinSDCNet
+from models.ScaleCount.SwinSDCNet2 import SwinSDCNet2
+from models.ScaleCount.SwinSDCNet3 import SwinSDCNet3
+from models.ScaleCount.SwinSDCNet4 import SwinSDCNet4
+from models.ScaleCount.SwinSDCNetNew import SwinSDCNetNew
 
 def Model(name, *args, **kwargs):
     if name == 'CSRNet':
@@ -39,8 +40,6 @@ def Model(name, *args, **kwargs):
         return SACANet(*args, **kwargs)
     elif name == 'MAN':
         return vgg19_trans(*args, **kwargs)
-    elif name == 'VideoSwin':
-        return VideoSwinTransformer(*args, **kwargs)
     elif name == 'BL':
         return BL_VGG(*args, **kwargs)
     elif name == 'CCTrans':
@@ -63,23 +62,25 @@ def Model(name, *args, **kwargs):
         return ConvLSTM(*args, **kwargs)
     elif name == 'VCFormer':
         return VCFormer(*args, **kwargs)
-    elif name == 'LTCrowd':
-        return LTCrowd(*args, **kwargs)
     elif name == 'TemporalCSRNet':
         return TemporalCSRNet(*args, **kwargs)
     elif name == 'CSRInvoNet':
         return CSRInvoNet(*args, **kwargs)
     elif name == 'DiffusionCounter':
         return DiffusionCounter(*args, **kwargs)
-    elif name == 'ScaleCount2':
-        return SCNet2(*args, **kwargs)
-    elif name == 'ScaleCount3':
-        return SCNet3(*args, **kwargs)
     elif name == 'SDCNet':
         return SDCNet(*args, **kwargs)
     elif name == 'SASNet':
         return SASNet(*args, **kwargs)
-    elif name == 'SASNet2':
-        return SASNet2(*args, **kwargs)
+    elif name == 'SwinSDCNet':
+        return SwinSDCNet(*args, **kwargs)
+    elif name == 'SwinSDCNet2':
+        return SwinSDCNet2(*args, **kwargs)
+    elif name == 'SwinSDCNet3':
+        return SwinSDCNet3(*args, **kwargs)
+    elif name == 'SwinSDCNet4':
+        return SwinSDCNet4(*args, **kwargs)
+    elif name == 'SwinSDCNetNew':
+        return SwinSDCNetNew(*args, **kwargs)
     else:
         raise NotImplementedError

@@ -7,41 +7,48 @@ trainer:
     class_path: pytorch_lightning.callbacks.ModelCheckpoint
     init_args:
       filename: epoch={epoch:03d}_mse={val/MSE:.2f}_mae={val/MAE:.2f}_nae={val/NAE:.2f}
-      monitor: val/NAE
+      monitor: val/MAE
       verbose: True
       save_last: True
       auto_insert_metric_name: False
       save_on_train_epoch_end: False
       save_weights_only: True
       mode: min
-      save_top_k: 3
   logger:
     class_path: pytorch_lightning.loggers.TensorBoardLogger
     init_args:
       save_dir: 'logs'
-      version: jhu_sdcnet_newdmap_300epoch
+      version: jhu_sdcnet_8scale_1e3_bayesian
   benchmark: True
   accelerator: auto
   devices: auto
   num_sanity_val_steps: 0
   detect_anomaly: True
-  max_epochs: 300
+  max_epochs: 120
 model:
   hparams:
-    batch_size_train: 8
+    batch_size_train: 4
     batch_size_val: 1
-    num_workers: 16
-    lr: 0.0001
+    num_workers: 4
+    lr: 0.001
     weight_decay: 1.0e-4
     model_name: 'SDCNet'
-    loss_name: 'MSE'
-    dataset_name: 'Scale'
-    log_para: 10
+    loss_name: 'Bayesian'
+    dataset_name: 'ScaleBayesian'
+    log_para: 1
     patch_size: 3584
     model:
       pretrained: true
     loss:
-      reduction: 'mean'
+      device: 'cuda'
+      use_background: true
+    post_prob:
+      device: 'cuda'
+      sigma_coeff: 0.5
+      c_size: 512
+      stride: 16
+      background_ratio: 0.15
+      use_background: True
     dataset:
       root: '/mnt/home/zpengac/USERDIR/Crowd_counting/datasets/jhu'
       crop_size: 512
@@ -49,6 +56,5 @@ model:
       log_para: 1
       is_grey: False
       unit_size: 16
-      type: 1
       scale_level: 10
       model_level: 3

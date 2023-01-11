@@ -326,18 +326,20 @@ cfg = {
     'E': [64, 64, 'M', 128, 128, 'M', 256, 256, 256, 256, 'M', 512, 512, 512, 512, 'M', 512, 512, 512, 512, 'M']
 }
 
-def vgg19_trans(pretrained=True):
+def vgg19_trans(pretrained_weight=None):
     """VGG 19-layer model (configuration "E")
         model pre-trained on ImageNet
     """
     model = VGG_Trans(make_layers(cfg['E']))
-    if pretrained:
-        model.load_state_dict(model_zoo.load_url(model_urls['vgg19']), strict=False)
+    # if pretrained:
+    #     model.load_state_dict(model_zoo.load_url(model_urls['vgg19']), strict=False)
+    if pretrained_weight is not None:
+        model.load_state_dict(torch.load(pretrained_weight, map_location='cpu'), strict=False)
     return model
 
 
 if __name__ == '__main__':
-    m = vgg19_trans()
+    m = vgg19_trans('/mnt/home/zpengac/USERDIR/Crowd_counting/Boosting-Crowd-Counting-via-Multifaceted-Attention/weights/jhu.pth')
     m.eval()
     x = torch.randn(1,3,512,512)
     y, _ = m(x)

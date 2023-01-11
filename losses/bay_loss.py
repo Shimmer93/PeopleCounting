@@ -21,10 +21,8 @@ class Bay_Loss(Module):
                     target[:-1] = target_list[idx]
                 else:
                     target = target_list[idx]
-                # print(f'pre_density: {pre_density[idx].shape}')
-                # print(f'prob: {prob.shape}')
                 pre_count = torch.sum(pre_density[idx].view((1, -1)) * prob, dim=1)  # flatten into vector
-                
+
             res = torch.abs(target - pre_count)
             num = ceil(0.9 * (len(res) - 1))
             loss += torch.sum(torch.topk(res[:-1], num, largest=False)[0])

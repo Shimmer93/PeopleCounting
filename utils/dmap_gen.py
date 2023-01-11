@@ -5,12 +5,13 @@ from scipy.io import loadmat
 from scipy.spatial import KDTree
 from scipy.ndimage import gaussian_filter
 from glob import glob
+from PIL import Image
  
 import os
 import argparse
 from multiprocessing import Pool
 
-def gaussian_filter_density(img,points):
+def gaussian_filter_density(img, points):
     '''
     This code use k-nearst, will take one minute or more to generate a density-map with one thousand people.
     points: a two-dimension list of pedestrians' annotation with the order [[col,row],[col,row],...].
@@ -49,13 +50,49 @@ def gaussian_filter_density(img,points):
     #print ('done.')
     return density
 
+def gaussian_filter_density_with_scale(img, points, scale):
+    '''
+    This code use k-nearst, will take one minute or more to generate a density-map with one thousand people.
+    points: a two-dimension list of pedestrians' annotation with the order [[col,row],[col,row],...].
+    img_shape: the shape of the image, same as the shape of required density-map. (row,col). Note that can not have channel.
+    return:
+    density: the density-map we want. Same shape as input image but only has one channel.
+    example:
+    points: three pedestrians with annotation:[[163,53],[175,64],[189,74]].
+    img_shape: (768,1024) 768 is row and 1024 is column.
+    '''
+    img_shape=[img.shape[0],img.shape[1]]
+    #print("Shape of current image: ",img_shape,". Totally need generate ",len(points),"gaussian kernels.")
+    density = np.zeros(img_shape, dtype=np.float32)
+    gt_count = len(points)
+    if gt_count == 0:
+        return density
+
+    #print ('generate density...')
+    for i, pt in enumerate(points):
+        pt2d = np.zeros(img_shape, dtype=np.float32)
+        if int(pt[1])<img_shape[0] and int(pt[0])<img_shape[1]:
+            pt2d[int(pt[1]),int(pt[0])] = 1.
+        else:
+            continue
+        sigma = scale[int(pt[1]),int(pt[0])] / 2
+        density += gaussian_filter(pt2d, sigma, mode='constant')
+    #print ('done.')
+    return density
+
 def run(img_fn):
+    basename = os.path.basename(img_fn).replace('.jpg', '')
     gt_fn = img_fn.replace('.jpg', '.npy')
-    basename = os.path.basename(gt_fn).replace('.npy', '')
+    smap_fn = img_fn.replace('.jpg', '_smap.png')
+    dmap_fn = gt_fn.replace(basename, basename + '_dmap')
+
+    if os.path.exists(dmap_fn):
+        return
+
     img = cv2.imread(img_fn)
     gt = np.load(gt_fn)
-    dmap = gaussian_filter_density(img, gt)
-    dmap_fn = gt_fn.replace(basename, basename + '_dmap')
+    smap = np.asarray(Image.open(smap_fn)).astype(np.float32)
+    dmap = gaussian_filter_density_with_scale(img, gt, smap)
     np.save(dmap_fn, dmap)
 
 if __name__ == '__main__':
@@ -68,8 +105,8 @@ if __name__ == '__main__':
         raise Exception("Path does not exist")
 
     img_fns = []
-    for phase in ['train', 'val', 'test']:
+    for phase in ['test']:
         img_fns += glob(os.path.join(path, phase, '*.jpg'))
 
-    with Pool(8) as p:
+    with Pool(16) as p:
         r = list(tqdm(p.imap(run, img_fns), total=len(img_fns)))

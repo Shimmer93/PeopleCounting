@@ -90,7 +90,7 @@ class BayesianDataset(BaseDataset):
             gt = gt - [j, i]  # change coodinate
 
         # Downsampling
-        #gt = gt / self.downsample
+        # gt = gt / self.downsample
 
         # Flipping
         if random.random() > 0.5:

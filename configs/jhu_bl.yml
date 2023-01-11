@@ -18,7 +18,7 @@ trainer:
     class_path: pytorch_lightning.loggers.TensorBoardLogger
     init_args:
       save_dir: 'logs'
-      version: jhu_sasnet_new2
+      version: jhu_bl
   benchmark: True
   accelerator: auto
   devices: auto
@@ -32,19 +32,27 @@ model:
     num_workers: 8
     lr: 0.0001
     weight_decay: 1.0e-4
-    model_name: 'SASNet'
-    loss_name: 'MSE'
-    dataset_name: 'Density'
-    log_para: 100
+    model_name: 'BL'
+    loss_name: 'Bayesian'
+    dataset_name: 'Bayesian'
+    log_para: 1
     patch_size: 1440
     model:
       pretrained: true
     loss:
-      reduction: 'mean'
+      device: 'cuda'
+      use_background: true
+    post_prob:
+      device: 'cuda'
+      sigma: 8.0
+      c_size: 512
+      stride: 8
+      background_ratio: 0.15
+      use_background: True
     dataset:
       root: '/mnt/home/zpengac/USERDIR/Crowd_counting/datasets/jhu'
       crop_size: 512
-      downsample: 1
+      downsample: 8
       log_para: 1
       is_grey: False
       unit_size: 16

@@ -108,7 +108,7 @@ class BaseDataset(Dataset):
 
         return img, gt
 
-    def _val_transform(self, img, gt):
+    def _val_transform(self, img, gt, name):
         if self.unit_size is not None and self.unit_size > 0:
             # Padding
             w, h = img.size
@@ -122,20 +122,6 @@ class BaseDataset(Dataset):
             if len(gt) > 0:
                 gt = gt + [left, top]
 
-        # # Cropping
-        # i, j = random_crop(h, w, self.crop_size, self.crop_size)
-        # h, w = self.crop_size, self.crop_size
-        # img = F.crop(img, i, j, h, w)
-        # h, w = self.crop_size, self.crop_size
-
-        # if len(gt) > 0:
-        #     gt = gt - [j, i]
-        #     idx_mask = (gt[:, 0] >= 0) * (gt[:, 0] <= w) * \
-        #                (gt[:, 1] >= 0) * (gt[:, 1] <= h)
-        #     gt = gt[idx_mask]
-        # else:
-        #     gt = np.empty([0, 2])
-
         # Downsampling
         gt = gt / self.downsample
 
@@ -143,4 +129,4 @@ class BaseDataset(Dataset):
         img = self.transform(img)
         gt = torch.from_numpy(gt.copy()).float()
 
-        return img, gt
+        return img, gt, name

@@ -83,7 +83,7 @@ class CSRNet(nn.Module):
             self.backend_feat, in_channels=512, dilation=True)
         self.output_layer = nn.Conv2d(64, 1, kernel_size=1)
         self.sigmoid = nn.Sigmoid()
-        if not load_weights:
+        if load_weights:
             mod = models.vgg16(weights=models.VGG16_Weights.DEFAULT)
             self._initialize_weights()
             fsd = collections.OrderedDict()

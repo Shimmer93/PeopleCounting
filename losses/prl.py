@@ -37,13 +37,13 @@ class PRL(nn.Module):
         loss1 = self.cost1(preds, gts)
 
         with torch.no_grad():
-            preds_gau3 = F.conv2d(preds, self.gaussian3.cuda().half(), padding=1)
-            gts_gau3 = F.conv2d(gts, self.gaussian3.cuda().half(), padding=1)
+            preds_gau3 = F.conv2d(preds, self.gaussian3.to(preds.device), padding=1)
+            gts_gau3 = F.conv2d(gts, self.gaussian3.to(gts.device), padding=1)
         loss2 = self.cost2(preds_gau3, gts_gau3)
 
         with torch.no_grad():
-            preds_gau5 = F.conv2d(preds, self.gaussian5.cuda().half(), padding=2)
-            gts_gau5 = F.conv2d(gts, self.gaussian5.cuda().half(), padding=2)
+            preds_gau5 = F.conv2d(preds, self.gaussian5.to(preds.device), padding=2)
+            gts_gau5 = F.conv2d(gts, self.gaussian5.to(gts.device), padding=2)
         loss3 = self.cost3(preds_gau5, gts_gau5)
 
         loss = loss1 + 15 * loss2 + 3 * loss3

@@ -14,9 +14,12 @@ from utils.data import random_crop, get_padding
 
 class ScaleMapDataset(BaseDataset):
 
-    def __init__(self, root, crop_size, downsample, log_para, method, is_grey, unit_size):
+    def __init__(self, root, crop_size, downsample, log_para, method, is_grey, unit_size, type=1, scale_level=8, model_level=5):
         assert crop_size % downsample == 0
         super().__init__(root, crop_size, downsample, log_para, method, is_grey, unit_size)
+        self.type = type
+        self.scale_level = scale_level
+        self.model_level = model_level
     
     def __getitem__(self, index):
         img_fn = self.img_fns[index]
@@ -24,15 +27,20 @@ class ScaleMapDataset(BaseDataset):
         gt_fn = img_fn.replace('jpg', 'npy')
         gt = np.load(gt_fn)
         basename = os.path.basename(img_fn).replace('.jpg', '')
-        dmap_fn = gt_fn.replace(basename, basename + '_dmap')
-        dmap = np.load(dmap_fn)
-        smap_fn = gt_fn.replace(basename, basename + '_smap')
-        smap = np.load(smap_fn)
-
         if self.method == 'train':
+            if self.type == 1:
+                dmap_fn = gt_fn.replace(basename, basename + '_dmap')
+            else:
+                dmap_fn = gt_fn.replace(basename, basename + '_dmap2')
+            dmap = np.load(dmap_fn)
+            # smap_fn = gt_fn.replace(basename, basename + '_smap')
+            # smap = np.load(smap_fn)
+            smap_fn = gt_fn.replace(basename, basename + '_smap').replace('.npy', '.png')
+            smap = np.asarray(Image.open(smap_fn)).astype(np.float32)
+
             return tuple(self._train_transform(img, gt, dmap, smap))
         elif self.method in ['val', 'test']:
-            return tuple(self._val_transform(img, gt))
+            return tuple(self._val_transform(img, gt, basename))
 
     def _train_transform(self, img, gt, dmap, smap):
         w, h = img.size
@@ -88,11 +96,33 @@ class ScaleMapDataset(BaseDataset):
         else:
             gt = np.empty([0, 2])
 
+        # Add black border
+        # if random.random() > 0.75:
+        #     border_sizes = np.random.random_integers(0, self.downsample-1, 4).tolist()
+        #     # print(border_sizes)
+        #     pad_h = border_sizes[1] + border_sizes[3]
+        #     pad_w = border_sizes[0] + border_sizes[2]
+        #     new_h = h - pad_h
+        #     new_w = w - pad_w
+        #     img = F.crop(img, 0, 0, new_h, new_w)
+        #     dmap = F.crop(dmap, 0, 0, new_h, new_w)
+        #     smap = F.crop(smap, 0, 0, new_h, new_w)
+        #     img = F.pad(img, border_sizes)
+        #     dmap = F.pad(dmap, border_sizes)
+        #     smap = F.pad(smap, border_sizes)
+
+        #     if len(gt) > 0:
+        #         idx_mask = (gt[:, 0] >= 0) * (gt[:, 0] <= new_w) * \
+        #                    (gt[:, 1] >= 0) * (gt[:, 1] <= new_h)
+        #         gt = gt[idx_mask]
+        #         gt = gt + [border_sizes[1], border_sizes[0]]
+
         # Downsampling
         down_w = w // self.downsample
         down_h = h // self.downsample
         dmap = dmap.reshape([1, down_h, self.downsample, down_w, self.downsample]).sum(dim=(2, 4))
         smap = F.resize(smap, (down_h, down_w), interpolation=Image.NEAREST)
+        # smap = torch.nn.functional.max_pool2d(smap, self.downsample)
 
         if len(gt) > 0:
             gt = gt / self.downsample
@@ -110,17 +140,20 @@ class ScaleMapDataset(BaseDataset):
         gt = torch.from_numpy(gt.copy()).float()
         dmap = dmap.float()
         smap = smap.float()
-        smap[smap<=0] = 1.0
-        smap = torch.clamp(6 + torch.log2(smap/self.crop_size), 0, 4)
+
+        mask = smap<=0
+        smap[mask] = 1.
+        smap = self.scale_level + torch.log2(smap/self.crop_size)
+        # smap[mask] = 0
+        # smap = torch.floor(smap).float()
 
         return img, gt, dmap, smap
 
 if __name__ == '__main__':
-    ds = DensityMapDataset('UCF_CC_50', '/mnt/home/zpengac/USERDIR/Crowd_counting/datasets/UCF_CC_50',
-            '/mnt/home/zpengac/USERDIR/Crowd_counting/datasets/UCF_CC_50/dmaps', 328, 8, 1, 'train', 
-            '/mnt/home/zpengac/USERDIR/Crowd_counting/PeopleCounting/data/UCF_CC_50/train.txt')
-
-    img, gt, dmap = ds[0]
-
-    print(img.shape, dmap.shape)
-    print(torch.sum(dmap), len(gt))
+    ds = ScaleMapDataset('/mnt/home/zpengac/USERDIR/Crowd_counting/datasets/jhu', 512, 16, 1, 'train', False, 16, 1, 8)
+    for i in range(100):
+        img, gt, dmap, smap = ds[i]
+        smap = torch.floor(smap)
+        smap = torch.flatten(smap)
+        smap = smap.numpy()
+        print(np.unique(smap))

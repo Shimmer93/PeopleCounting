@@ -6,38 +6,37 @@ trainer:
       refresh_rate: 10
     class_path: pytorch_lightning.callbacks.ModelCheckpoint
     init_args:
-      filename: epoch={epoch:03d}_mse={val/MSE:.2f}_mae={val/MAE:.2f}_nae={val/NAE:.2f}
-      monitor: val/NAE
+      filename: epoch={epoch:03d}_mse={val/MSE:.2f}_mae={val/MAE:.2f}
+      monitor: val/MAE
       verbose: True
       save_last: True
       auto_insert_metric_name: False
       save_on_train_epoch_end: False
       save_weights_only: True
       mode: min
-      save_top_k: 3
   logger:
     class_path: pytorch_lightning.loggers.TensorBoardLogger
     init_args:
       save_dir: 'logs'
-      version: jhu_sdcnet_newdmap_300epoch
+      version: jhu_ressdcnet_8scale_1e4_32
   benchmark: True
   accelerator: auto
   devices: auto
   num_sanity_val_steps: 0
   detect_anomaly: True
-  max_epochs: 300
+  max_epochs: 120
 model:
   hparams:
     batch_size_train: 8
     batch_size_val: 1
-    num_workers: 16
+    num_workers: 8
     lr: 0.0001
     weight_decay: 1.0e-4
-    model_name: 'SDCNet'
+    model_name: 'ResSDCNet'
     loss_name: 'MSE'
     dataset_name: 'Scale'
-    log_para: 10
-    patch_size: 3584
+    log_para: 1
+    patch_size: 1440
     model:
       pretrained: true
     loss:
@@ -45,10 +44,10 @@ model:
     dataset:
       root: '/mnt/home/zpengac/USERDIR/Crowd_counting/datasets/jhu'
       crop_size: 512
-      downsample: 16
+      downsample: 32
       log_para: 1
       is_grey: False
-      unit_size: 16
+      unit_size: 32
       type: 1
-      scale_level: 10
-      model_level: 3
+      scale_level: 8
+      model_level: 4

@@ -40,7 +40,7 @@ def find_dis(point):
     dis = np.mean(np.partition(dis, 3, axis=1)[:, 1:4], axis=1, keepdims=True)
     return dis
 
-def generate_data_jhu(im_path):
+def generate_data_jhu(im_path, min_size, max_size):
     im = Image.open(im_path)
     im_w, im_h = im.size
     mat_path = im_path.replace('images', 'gt').replace('.jpg', '.txt')
@@ -63,7 +63,7 @@ def generate_data_jhu(im_path):
         points = points * rr
     return Image.fromarray(im), points
 
-def generate_data_qnrf(im_path):
+def generate_data_qnrf(im_path, min_size, max_size):
     im = Image.open(im_path)
     im_w, im_h = im.size
     mat_path = im_path.replace('.jpg', '_ann.mat')
@@ -77,7 +77,7 @@ def generate_data_qnrf(im_path):
         points = points * rr
     return Image.fromarray(im), points
 
-def generate_data_smartcity(im_path):
+def generate_data_smartcity(im_path, min_size, max_size):
     im = Image.open(im_path)
     im_w, im_h = im.size
     mat_path = im_path.replace('.jpg', '.mat')
@@ -91,7 +91,7 @@ def generate_data_smartcity(im_path):
         points = points * rr
     return Image.fromarray(im), points
 
-def generate_data_sta(im_path):
+def generate_data_sta(im_path, min_size, max_size):
     im = Image.open(im_path)
     im_w, im_h = im.size
     name = im_path.split('/')[-1].split('.')[0]
@@ -106,7 +106,7 @@ def generate_data_sta(im_path):
         points = points * rr
     return Image.fromarray(im), points
 
-def generate_data_cc50(im_path):
+def generate_data_cc50(im_path, min_size, max_size):
     im = Image.open(im_path)
     im_w, im_h = im.size
     mat_path = im_path.replace('.jpg', '_ann.mat')
@@ -120,7 +120,7 @@ def generate_data_cc50(im_path):
         points = points * rr
     return Image.fromarray(im), points
 
-def generate_data_fdst(im_path):
+def generate_data_fdst(im_path, min_size, max_size):
     im = Image.open(im_path)
     im_w, im_h = im.size
     name = im_path.split('/')[-1].split('.')[0]
@@ -135,7 +135,7 @@ def generate_data_fdst(im_path):
         points = points * rr
     return Image.fromarray(im), points
 
-def generate_data_vidcrowd(im_path, mat_path):
+def generate_data_vidcrowd(im_path, mat_path, min_size, max_size):
     im = Image.open(im_path)
     im_w, im_h = im.size
     points = loadmat(mat_path)['annotation'].astype(np.float32)
@@ -144,7 +144,7 @@ def generate_data_vidcrowd(im_path, mat_path):
     
     return im, points
 
-def generate_data_worldexpo(im_path, mat_path):
+def generate_data_worldexpo(im_path, mat_path, min_size, max_size):
     im = Image.open(im_path)
     im_w, im_h = im.size
     points = loadmat(mat_path)['annotation'].astype(np.float32)
@@ -162,7 +162,7 @@ def run_jhu(origin_dir, save_dir, min_size, max_size):
             im_list = glob(os.path.join(os.path.join(sub_dir, 'images'), '*jpg'))
             for im_path in tqdm(im_list):
                 name = os.path.basename(im_path)
-                im, points = generate_data_jhu(im_path)
+                im, points = generate_data_jhu(im_path, min_size, max_size)
                 im_save_path = os.path.join(sub_save_dir, name)
                 im.save(im_save_path, quality=95)
                 gd_save_path = im_save_path.replace('jpg', 'npy')
@@ -182,7 +182,7 @@ def run_qnrf(origin_dir, save_dir, min_size, max_size):
                         im_path = os.path.join(sub_dir, i.strip())
                         name = os.path.basename(im_path)
                         print(name)
-                        im, points = generate_data_qnrf(im_path)
+                        im, points = generate_data_qnrf(im_path, min_size, max_size)
                         im_save_path = os.path.join(sub_save_dir, name)
                         im.save(im_save_path)
                         gd_save_path = im_save_path.replace('jpg', 'npy')
@@ -194,7 +194,7 @@ def run_qnrf(origin_dir, save_dir, min_size, max_size):
             im_list = glob(os.path.join(sub_dir, '*jpg'))
             for im_path in tqdm(im_list):
                 name = os.path.basename(im_path)
-                im, points = generate_data_qnrf(im_path)
+                im, points = generate_data_qnrf(im_path, min_size, max_size)
                 im_save_path = os.path.join(sub_save_dir, name)
                 im.save(im_save_path)
                 gd_save_path = im_save_path.replace('jpg', 'npy')
@@ -216,7 +216,7 @@ def run_smartcity(origin_dir, save_dir, min_size, max_size):
             os.makedirs(sub_save_dir)
         for im_path in tqdm(im_list):
             name = os.path.basename(im_path)
-            im, points = generate_data_smartcity(im_path)
+            im, points = generate_data_smartcity(im_path, min_size, max_size)
             im_save_path = os.path.join(sub_save_dir, name)
             im.save(im_save_path)
             gd_save_path = im_save_path.replace('jpg', 'npy')
@@ -239,7 +239,7 @@ def run_sta(origin_dir, save_dir, min_size, max_size):
                     os.makedirs(sub_save_dir)
                 for im_path in tqdm(im_list):
                     name = os.path.basename(im_path)
-                    im, points = generate_data_sta(im_path)
+                    im, points = generate_data_sta(im_path, min_size, max_size)
                     im_save_path = os.path.join(sub_save_dir, name)
                     im.save(im_save_path)
                     gd_save_path = im_save_path.replace('jpg', 'npy')
@@ -252,7 +252,7 @@ def run_sta(origin_dir, save_dir, min_size, max_size):
             im_list = glob(os.path.join(im_path, '*jpg'))
             for im_path in tqdm(im_list):
                 name = os.path.basename(im_path)
-                im, points = generate_data_sta(im_path)
+                im, points = generate_data_sta(im_path, min_size, max_size)
                 im_save_path = os.path.join(sub_save_dir, name)
                 im.save(im_save_path)
                 gd_save_path = im_save_path.replace('jpg', 'npy')
@@ -273,7 +273,7 @@ def run_cc50(origin_dir, save_dir, min_size, max_size):
             os.makedirs(sub_save_dir)
         for im_path in tqdm(im_list):
             name = os.path.basename(im_path)
-            im, points = generate_data_cc50(im_path)
+            im, points = generate_data_cc50(im_path, min_size, max_size)
             im_save_path = os.path.join(sub_save_dir, name)
             im.save(im_save_path)
             gd_save_path = im_save_path.replace('jpg', 'npy')
@@ -303,7 +303,7 @@ def run_fdst(origin_dir, save_dir, min_size, max_size):
                     sub_phase = 'train'
                 else:
                     sub_phase = 'val'
-                im, points = generate_data_fdst(im_path)
+                im, points = generate_data_fdst(im_path, min_size, max_size)
                 sub_save_dir = os.path.join(save_dir, sub_phase)
                 im_save_path = os.path.join(sub_save_dir, name)
                 im.save(im_save_path)
@@ -317,7 +317,7 @@ def run_fdst(origin_dir, save_dir, min_size, max_size):
             im_list = glob(os.path.join(im_path, '*jpg'))
             for im_path in tqdm(im_list):
                 name = os.path.basename(im_path)
-                im, points = generate_data_fdst(im_path)
+                im, points = generate_data_fdst(im_path, min_size, max_size)
                 im_save_path = os.path.join(sub_save_dir, name)
                 im.save(im_save_path)
                 gd_save_path = im_save_path.replace('jpg', 'npy')
@@ -342,7 +342,7 @@ def run_vidcrowd(origin_dir, save_dir, min_size, max_size):
                     name = os.path.basename(gt_path)
                     name = name.replace('mat', 'jpg')
                     im_path = os.path.join(origin_dir, 'images', name)
-                    im, points = generate_data_vidcrowd(im_path, gt_path)
+                    im, points = generate_data_vidcrowd(im_path, gt_path, min_size, max_size)
                     im_save_path = os.path.join(sub_save_dir, name)
                     im.save(im_save_path)
                     gd_save_path = im_save_path.replace('jpg', 'npy')
@@ -355,7 +355,7 @@ def run_vidcrowd(origin_dir, save_dir, min_size, max_size):
                 name = os.path.basename(gt_path)
                 name = name.replace('mat', 'jpg')
                 im_path = os.path.join(origin_dir, 'images', name)
-                im, points = generate_data_vidcrowd(im_path, gt_path)
+                im, points = generate_data_vidcrowd(im_path, gt_path, min_size, max_size)
                 im_save_path = os.path.join(sub_save_dir, name)
                 im.save(im_save_path)
                 gd_save_path = im_save_path.replace('jpg', 'npy')
@@ -369,7 +369,7 @@ def parse_args():
                         help='processed data directory')
     parser.add_argument('--min-size', default=512, type=int,
                         help='minimum image size')
-    parser.add_argument('--max-size', default=1024, type=int,
+    parser.add_argument('--max-size', default=2048, type=int,
                         help='maximum image size')
     parser.add_argument('--dataset', default='jhu', type=str, choices=['jhu', 'qnrf', 'smartcity', 'sta', 'cc50', 'fdst', 'vidcrowd', 'worldexpo'],
                         help='dataset name')

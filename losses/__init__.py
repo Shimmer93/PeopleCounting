@@ -5,6 +5,7 @@ from losses.lstn_loss import LSTN_Loss, MLSTN_Loss
 from losses.tan_loss import TAN_Loss
 from losses.prl import PRL
 from losses.lt_loss import LTLoss
+from losses.sdc_loss import SDCLoss
 
 from torch.nn import MSELoss, L1Loss
 
@@ -29,3 +30,5 @@ def Loss(name, *args, **kwargs):
         return PRL(*args, **kwargs)
     elif name == 'LT':
         return LTLoss(*args, **kwargs)
+    elif name == 'SDC':
+        return SDCLoss(*args, **kwargs)

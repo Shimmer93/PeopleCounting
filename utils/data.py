@@ -37,3 +37,31 @@ def cal_inner_area(c_left, c_up, c_right, c_down, bbox):
     inner_down = np.minimum(c_down, bbox[:, 3])
     inner_area = np.maximum(inner_right-inner_left, 0.0) * np.maximum(inner_down-inner_up, 0.0)
     return inner_area
+
+def divide_img_into_patches(img, patch_size):
+    h, w = img.shape[-2:]
+
+    img_patches = []
+    h_stride = int(np.ceil(1.0 * h / patch_size))
+    w_stride = int(np.ceil(1.0 * w / patch_size))
+    for i in range(h_stride):
+        for j in range(w_stride):
+            h_start = i * patch_size
+            if i != h_stride - 1:
+                h_end = (i + 1) * patch_size
+            else:
+                h_end = h
+            w_start = j * patch_size
+            if j != w_stride - 1:
+                w_end = (j + 1) * patch_size
+            else:
+                w_end = w
+            img_patches.append(img[..., h_start:h_end, w_start:w_end])
+
+    return img_patches, h_stride, w_stride
+
+def denormalize(img_tensor):
+    # denormalize a image tensor
+    img_tensor = img_tensor * torch.tensor([0.229, 0.224, 0.225]).view(3, 1, 1).to(img_tensor.device)
+    img_tensor = img_tensor + torch.tensor([0.485, 0.456, 0.406]).view(3, 1, 1).to(img_tensor.device)
+    return img_tensor
